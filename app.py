@@ -4,6 +4,9 @@ from shiny.express import input, render, ui
 import faicons as fa
 import pymysql as sql
 
+# save value for database connection
+cnx = reactive.Value(None)
+
 # title banner - top of screen
 ui.page_opts(
     title="Boston Restaurants: Inspections and Reviews", fillable=False)
@@ -31,19 +34,18 @@ def show_login_modal():
 @reactive.event(input.connect)
 def connect_to_database():
     try:
-        cnx = sql.connect(host='localhost', user=input.name(), passwd=input.password(),
-                                  db='gamedb_cainh', charset='utf8mb4')
+        connection = sql.connect(
+            host='localhost', user=input.name(), passwd=input.password(),
+            db='food_inspections', charset='utf8mb4'
+        )
+        cnx.set(connection)  # store it globally
         ui.modal_remove()
+        m = ui.modal(title="Connection successful!", easy_close=True, footer=None)
+        ui.modal_show(m)
 
-    # modal for connection failure
     except sql.err.OperationalError:
-        @reactive.effect
-        def show_failure_modal():
-            m = ui.modal(title="Connection failed",
-                easy_close=True,
-                footer=None,
-            )
-            ui.modal_show(m)
+        m = ui.modal(title="Connection failed", easy_close=True, footer=None)
+        ui.modal_show(m)
 
 # two tabs: Overview and Restaurant Search
 with ui.navset_pill(id="selected_navset_pill"):
@@ -61,21 +63,29 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.express
                 def total_restaurants():
-                    pass # SQL FUNCTION: SELECT * FROM restaurant
+                    conn = cnx()
+                    if conn is None:
+                        "Not connected"
+                    else:
+                        c = conn.cursor()
+                        c.execute("SELECT COUNT(*) FROM restaurant")
+                        val = c.fetchone()[0]
+                        val
+
 
             with ui.value_box(showcase=ICONS["clipboard"]):
                 "Total health inspections"
 
                 @ render.express
                 def total_health_inspections():
-                    pass # SQl FUNCTION: SELECT * FROM restaurant
+                    pass # SQl FUNCTION: SELECT COUNT(*) FROM restaurant
 
             with ui.value_box(showcase=ICONS["yelp"]):
                 "Total reviews"
 
                 @render.express
                 def total_reviews():
-                    pass #SQL FUNCTION: SELECT * FROM reviews
+                    pass #SQL FUNCTION: SELECT COUNT(*) FROM reviews
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
