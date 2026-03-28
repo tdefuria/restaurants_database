@@ -5,7 +5,7 @@ import csv
 tracts_filepath = None
 bgs_filepath = None
 blocks_filepath = None
-parcels_filepath = None
+inspections_filepath = None
 
 cnx = pymysql.connect(
     host='localhost',
@@ -46,7 +46,7 @@ with open(blocks_filepath, 'r') as f:
 print("Processed census blocks")
 
 
-with open(parcels_filepath, 'r') as f:
+with open(inspections_filepath, 'r') as f:
     reader = csv.DictReader(f)
     for row in reader:
         c.execute("""
