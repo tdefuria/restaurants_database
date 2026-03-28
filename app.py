@@ -78,14 +78,28 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @ render.express
                 def total_health_inspections():
-                    pass # SQl FUNCTION: SELECT COUNT(*) FROM restaurant
+                    conn = cnx()
+                    if conn is None:
+                        "Not connected"
+                    else:
+                        c = conn.cursor()
+                        c.execute("SELECT COUNT(*) FROM inspection")
+                        val = c.fetchone()[0]
+                        val
 
             with ui.value_box(showcase=ICONS["yelp"]):
                 "Total reviews"
 
                 @render.express
                 def total_reviews():
-                    pass #SQL FUNCTION: SELECT COUNT(*) FROM reviews
+                    conn = cnx()
+                    if conn is None:
+                        "Not connected"
+                    else:
+                        c = conn.cursor()
+                        c.execute("SELECT COUNT(*) FROM review")
+                        val = c.fetchone()[0]
+                        val
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
