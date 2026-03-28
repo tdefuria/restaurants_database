@@ -5,6 +5,7 @@ import csv
 tracts_filepath = None
 bgs_filepath = None
 blocks_filepath = None
+parcels_filepath = None
 
 cnx = pymysql.connect(
     host='localhost',
@@ -43,7 +44,17 @@ with open(blocks_filepath, 'r') as f:
         """, (row['Blk_ID_10'], row['BG_ID_10'], 2010))
 
 print("Processed census blocks")
-print("Done!")
 
+
+with open(parcels_filepath, 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        c.execute("""
+            INSERT IGNORE INTO land_parcel (land_parcel_id, gis_id, block_id)
+            VALUES (%s, %s, %s)
+        """, (row['Land_Parcel_ID'], row['GIS_ID'], row['Blk_ID_10']))
+
+print("Processed land parcels")
+print("Done!")
 cnx.commit()
 cnx.close()
