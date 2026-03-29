@@ -113,6 +113,8 @@ with ui.navset_pill(id="selected_navset_pill"):
                     return call_proc('get_avg_violations_per_inspection')
 
         with ui.layout_columns(fill=False):
+
+            # plot of violations per level
             with ui.card():
                 ui.card_header("Violations by Level")
 
@@ -138,6 +140,23 @@ with ui.navset_pill(id="selected_navset_pill"):
                             verticalalignment='top',
                             horizontalalignment='right',
                             bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.8))
+                    return fig
+
+            # plot of violations per year
+            with ui.card():
+                ui.card_header("Total Violations per Year")
+
+                @render.plot
+                def violations_per_year():
+                    conn = cnx()
+                    if conn is None:
+                        return
+                    df = pd.read_sql("CALL food_inspections.get_violations_per_year()", conn)
+                    fig, ax = plt.subplots()
+                    ax.plot(df['year'], df['count'], marker='o')
+                    ax.set_title('Total Violations per Year')
+                    ax.set_xlabel('Year')
+                    ax.set_ylabel('Count')
                     return fig
 
     # Restaurant Search panel
