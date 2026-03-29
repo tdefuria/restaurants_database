@@ -1,5 +1,5 @@
 
-from shiny import reactive
+from shiny import reactive, req
 from shiny.express import input, render, ui
 import faicons as fa
 import pymysql as sql
@@ -51,7 +51,6 @@ def connect_to_database():
 with ui.navset_pill(id="selected_navset_pill"):
     # Overview dashboard tab
     with ui.nav_panel("Overview"):
-        "Boston Overview Dashboard"
 
         ICONS = {"utensils": fa.icon_svg("utensils"),
                  "clipboard": fa.icon_svg("clipboard"),
@@ -61,45 +60,39 @@ with ui.navset_pill(id="selected_navset_pill"):
             with ui.value_box(showcase=ICONS["utensils"]):
                 "Total restaurants"
 
-                @render.express
+                @render.text
                 def total_restaurants():
                     conn = cnx()
                     if conn is None:
-                        "Not connected"
-                    else:
-                        c = conn.cursor()
-                        c.execute("SELECT COUNT(*) FROM restaurant")
-                        val = c.fetchone()[0]
-                        val
+                        return ""
+                    c = conn.cursor()
+                    c.execute("SELECT COUNT(*) FROM restaurant")
+                    return str(c.fetchone()[0])
 
 
             with ui.value_box(showcase=ICONS["clipboard"]):
                 "Total health inspections"
 
-                @ render.express
+                @render.text
                 def total_health_inspections():
                     conn = cnx()
                     if conn is None:
-                        "Not connected"
-                    else:
-                        c = conn.cursor()
-                        c.execute("SELECT COUNT(*) FROM inspection")
-                        val = c.fetchone()[0]
-                        val
+                        return ""
+                    c = conn.cursor()
+                    c.execute("SELECT COUNT(*) FROM inspection")
+                    return str(c.fetchone()[0])
 
             with ui.value_box(showcase=ICONS["yelp"]):
                 "Total reviews"
 
-                @render.express
+                @render.text
                 def total_reviews():
                     conn = cnx()
                     if conn is None:
-                        "Not connected"
-                    else:
-                        c = conn.cursor()
-                        c.execute("SELECT COUNT(*) FROM review")
-                        val = c.fetchone()[0]
-                        val
+                        return ""
+                    c = conn.cursor()
+                    c.execute("SELECT COUNT(*) FROM review")
+                    return str(c.fetchone()[0])
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
