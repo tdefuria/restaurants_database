@@ -3,6 +3,8 @@ from shiny import reactive, req
 from shiny.express import input, render, ui
 import faicons as fa
 import pymysql as sql
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # save value for database connection
 cnx = reactive.Value(None)
@@ -109,6 +111,34 @@ with ui.navset_pill(id="selected_navset_pill"):
                 @render.text
                 def avg_violations():
                     return call_proc('get_avg_violations_per_inspection')
+
+        with ui.layout_columns(fill=False):
+            with ui.card():
+                ui.card_header("Violations by Level")
+
+                @render.plot
+                def violations_by_level():
+                    conn = cnx()
+                    if conn is None:
+                        return
+                    df = pd.read_sql("CALL food_inspections.get_violations_by_level()", conn)
+                    fig, ax = plt.subplots()
+                    ax.bar(df['violation_level'], df['count'])
+                    ax.set_title('Health and Safety Violations by Level')
+                    ax.set_xlabel('Violation Level')
+                    ax.set_ylabel('Count')
+                    description = (
+                        "Level 1: Least severe\n"
+                        "Level 2: Moderate\n"
+                        "Level 3: Most severe"
+                    )
+                    ax.text(0.98, 0.98, description,
+                            transform=ax.transAxes,
+                            fontsize=8,
+                            verticalalignment='top',
+                            horizontalalignment='right',
+                            bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.8))
+                    return fig
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
