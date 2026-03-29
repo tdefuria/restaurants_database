@@ -10,7 +10,7 @@ inspections_filepath = None
 cnx = pymysql.connect(
     host='localhost',
     user='root',
-    passwd='3atUrGr33ns94!',
+    passwd='pass',
     db='food_inspections'
 )
 c = cnx.cursor()
