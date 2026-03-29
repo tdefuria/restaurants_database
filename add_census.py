@@ -10,11 +10,11 @@ inspections_filepath = None
 cnx = pymysql.connect(
     host='localhost',
     user='root',
-    passwd='password',
+    passwd='3atUrGr33ns94!',
     db='food_inspections'
 )
 c = cnx.cursor()
-
+'''
 with open(tracts_filepath, 'r') as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -53,7 +53,17 @@ with open(inspections_filepath, 'r') as f:
             INSERT IGNORE INTO land_parcel (land_parcel_id, gis_id, block_id)
             VALUES (%s, %s, %s)
         """, (row['Land_Parcel_ID'], row['GIS_ID'], row['Blk_ID_10']))
+'''
 
+
+with open('/Users/helencain/Desktop/CS_5200/Project/csv_files/Food.Inspections.Yelp.Restaurant.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        c.execute("""
+            UPDATE restaurant
+            SET review_count = %s, avg_rating = %s
+            WHERE business_name = %s
+        """, (row['review_count_total'], row['ave_rating'], row['Restaurant.Name']))
 print("Processed land parcels")
 print("Done!")
 cnx.commit()
