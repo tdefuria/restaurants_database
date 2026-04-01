@@ -6,8 +6,11 @@ import pymysql as sql
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# save value for database connection
+# save value for database connection (session-specific)
 cnx = reactive.Value()
+
+# license_num values available (session-specific)
+license_num_dict = reactive.Value()
 
 # helper function for calling processes in value cards
 def call_proc(proc_name):
@@ -201,7 +204,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                                    choices=["Click to search"],
                                    width='100%')
 
-
             with ui.layout_columns(fill=False):
                 # review survey box
                 with ui.card():
@@ -232,7 +234,9 @@ with ui.navset_pill(id="selected_navset_pill"):
                         return
 
                     # extract license_num from the selected restaurant option
-                    license_num = None
+                    current_dict = license_num_dict.get()
+                    license_num_reactive_value = current_dict.get(input.restaurant_selected())
+                    license_num = license_num_reactive_value.get()
                     username = input.email()
 
                     try:
@@ -263,44 +267,49 @@ def concatenate_restaurant_results(result_list):
     if result_list == []:
         return None
     option_list = []
+    license_num_dict = {}
     for i in range(len(result_list)):
         result_dict = result_list[i]
         option = f"{result_dict.get('business_name', 'No business name')}"
         option += f" : {result_dict.get('street_num', 'No street')}"
         option += f" {result_dict.get('city', 'No city')}"
         option_list.append(option)
-    return option_list
+        license_num_dict[option] = reactive.Value(result_dict.get('license_num'))
+    return option_list, license_num_dict
+
+
 
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
     if input.keyword_search() == '': # keyword_search contains the search terms
         result_list = query_for_dict("CALL get_all_restaurants_search_options()")
-        option_list = concatenate_restaurant_results(result_list)
-        return option_list
+        option_list, license_num_dict = concatenate_restaurant_results(result_list)
     else:
         with reactive.isolate():
             keywords = input.keyword_search()
         result_list = query_for_dict("CALL search_by_name_restaurant(\'" +keywords+ "\')")
-        option_list = concatenate_restaurant_results(result_list)
+        option_list, license_num_dict = concatenate_restaurant_results(result_list)
         with reactive.isolate():
             ui.update_text('keyword_search', value='')
-        return option_list
+    return option_list, license_num_dict
 
 @reactive.effect
 def update_choices():
-    new_choices = populate_search_options()
+    new_choices_list, current_license_nums = populate_search_options()
+    license_num_dict.unset()
+    license_num_dict.set(current_license_nums)
     ui.update_selectize(
         'restaurant_selected',
         choices=[],
         selected=None
     )
 
-    if new_choices: # only if there are results
+    if new_choices_list: # only if there are results
         ui.update_selectize(
             'restaurant_selected',
-            choices=new_choices,
-            selected=new_choices[0]
+            choices=new_choices_list,
+            selected=new_choices_list[0]
         )
     else:
         ui.update_selectize(

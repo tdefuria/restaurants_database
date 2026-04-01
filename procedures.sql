@@ -156,13 +156,13 @@ DELIMITER ;
 -- sandbox
 SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
 CALL get_restaurant_violations(18174); -- 41 rows
-
+SELECT * FROM review WHERE license_num = 18678;
 CALL search_by_name_restaurant('Dunkin'); -- 3
 CALL search_by_name_restaurant('Nero');
 CALL search_by_name_restaurant('Legal');
 CALL get_all_restaurants_search_options;
 CALL search_by_name_restaurant('Williams'); -- 0
-SELECT business_name, street_num, city FROM restaurant 
+SELECT business_name, street_num, city FROM restaurant
 	INNER JOIN address USING (property_id)
 	WHERE business_name LIKE ('%Sea%');
 
