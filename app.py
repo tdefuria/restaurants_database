@@ -18,6 +18,24 @@ def call_proc(proc_name):
     c.callproc(f'food_inspections.{proc_name}')
     return str(c.fetchone()[0])
 
+
+# helper function for calling procedures that would return dataframes
+def query_for_df(query):
+    conn = cnx()
+    if conn is None:
+        return
+    with conn.cursor() as cur:
+        cur.execute(query)
+        results = cur.fetchall() # to get every line returned
+        # because the columns are included in the description.
+        # although I can't find documentation in pymysql cursor objects for cur.description,
+        # this stack overflow post has it and I tested that
+        # 1 it causes error from column not found without this line
+        # 2 it contains the columns with their appropriate names with this
+        # https://stackoverflow.com/questions/12704305/return-column-names-from-pyodbc-execute-statement#:~:text=4%20Answers,3%20Comments
+        columns = [description[0] for description in cur.description]
+    return pd.DataFrame(results, columns=columns)
+
 # title banner - top of screen
 ui.page_opts(
     title="Boston Restaurants: Inspections and Reviews", fillable=False)
@@ -27,6 +45,8 @@ ui.page_opts(
 ui.input_action_button("login", "Login to database")
 
 # modal pop-up for database login
+# input is the action that triggers the event
+# login is the id for the input action button
 @reactive.effect
 @reactive.event(input.login)
 def show_login_modal():
@@ -123,7 +143,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                     conn = cnx()
                     if conn is None:
                         return
-                    df = pd.read_sql("CALL food_inspections.get_violations_by_level()", conn)
+                    df = query_for_df("CALL food_inspections.get_violations_by_level()")
                     fig, ax = plt.subplots()
                     ax.bar(df['violation_level'], df['count'])
                     ax.set_title('Health and Safety Violations by Level')
@@ -151,7 +171,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                     conn = cnx()
                     if conn is None:
                         return
-                    df = pd.read_sql("CALL food_inspections.get_violations_per_year()", conn)
+                    df = query_for_df("CALL food_inspections.get_violations_per_year()")
                     fig, ax = plt.subplots()
                     ax.plot(df['year'], df['count'], marker='o')
                     ax.set_title('Total Violations per Year')
@@ -164,14 +184,60 @@ with ui.navset_pill(id="selected_navset_pill"):
         # panel sidebar -
         with ui.layout_sidebar():
             with ui.sidebar(title="Restaurant Search"):
+                with ui.layout_columns(fill=False):
+                    ui.input_text("keyword_search", '')
+                    ui.input_action_button("send_search", "Enter")
                 ui.input_selectize(id="searchbar",
-                                   label="Search Restaurants",
-                                   choices=['tango', 'yahoo'],
+                                   label="Select Restaurant",
+                                   choices=["Click to search"],
                                    width='100%')
 
+@reactive.calc
+@reactive.event(input.send_search) # enter sends the search
+def populate_search_options():
+    if input.keyword_search() == '': # keyword_search contains the search terms
+        df = query_for_df("CALL get_all_restaurants_search_options()")
+        if df is None or df.empty:
+            return None
+        df = df.head(10)
+        cols = df.columns
+        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
+                                                  axis=1)
+        option_list = df['option'].tolist()
+        return option_list
+    else:
+        with reactive.isolate():
+            keywords = input.keyword_search()
+        df = query_for_df("CALL search_by_name_restaurant(\'" +keywords+ "\')")
+        if df is None or df.empty:
+            return None
+        df = df.head(10)
+        cols = df.columns
+        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
+                                                  axis=1)
+        option_list = df['option'].tolist()
+        with reactive.isolate():
+            ui.update_text('keyword_search', value='')
+        return option_list
 
+@reactive.effect
+def update_choices():
+    new_choices = populate_search_options()
+    ui.update_selectize(
+        'searchbar',
+        choices=[],
+        selected=None
+    )
 
-
-
-
-
+    if new_choices: # only if there are results
+        ui.update_selectize(
+            'searchbar',
+            choices=new_choices,
+            selected=new_choices[0]
+        )
+    else:
+        ui.update_selectize(
+            'searchbar',
+            choices=[],
+            selected=None
+        )
