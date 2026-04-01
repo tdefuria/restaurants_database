@@ -74,7 +74,7 @@ DELIMITER $$
 CREATE PROCEDURE get_all_restaurants_search_options()
 BEGIN
 	-- , street_num, city
-	SELECT business_name, street_num, city FROM restaurant
+	SELECT restaurant.license_num, business_name, street_num, city FROM restaurant
 		INNER JOIN address USING (property_id);
 END $$
 DELIMITER ;
@@ -84,10 +84,9 @@ DELIMITER $$
 -- Returns the street and city for restaurants with names like the search
 CREATE PROCEDURE search_by_name_restaurant(business_name_p varchar(512))
 BEGIN
-
-	SELECT business_name, street_num, city FROM restaurant 
+	SELECT restaurant.license_num, business_name, street_num, city FROM restaurant 
 		INNER JOIN address USING (property_id)
-        WHERE business_name LIKE (business_name_p);
+        WHERE business_name LIKE (CONCAT('%', business_name_p, '%'));
 END $$
 DELIMITER ;
 
@@ -155,15 +154,15 @@ DELIMITER ;
 
 
 -- sandbox
-SELECT * FROM restaurant WHERE business_name LIKE ('Dunkin');
+SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
 CALL get_restaurant_violations(18174); -- 41 rows
 
 CALL search_by_name_restaurant('Dunkin'); -- 3
 CALL get_all_restaurants_search_options;
 CALL search_by_name_restaurant('Williams'); -- 0
-SELECT street_num, city FROM restaurant 
+SELECT business_name, street_num, city FROM restaurant 
 	INNER JOIN address USING (property_id)
-	WHERE business_name LIKE ('Bell');
+	WHERE business_name LIKE ('%Sea%');
 
 SET @vc = 0;
 CALL get_restaurant_violations_count(18174, @vc);
