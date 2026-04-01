@@ -192,16 +192,17 @@ with ui.navset_pill(id="selected_navset_pill"):
                                    choices=["Click to search"],
                                    width='100%')
 
-            # review survey box
+
             with ui.layout_columns(fill=False):
+                # review survey box
                 with ui.card():
                     ui.card_header("Review this restaurant!")
                     ui.input_text("email", 'Email Address')
-                    with ui.layout_columns(fill=False):
-                        ui.input_text("city", 'City:')
-                        ui.input_text("state", 'State:')
+                    ui.input_text("city", 'City')
+                    ui.input_text("state", 'State')
                     ui.input_radio_buttons(id="rating", label="Rating:",
-                                            choices=["0", "1", "2", "3", "4", "5"])
+                                            choices=["0", "1", "2", "3", "4", "5"],
+                                           inline=True)
                     ui.input_text_area(id="comment", label="Comment:",
                                         value='I ate here!')
 
