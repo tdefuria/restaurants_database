@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # save value for database connection
-cnx = reactive.Value(None)
+cnx = reactive.Value()
 
 # helper function for calling processes in value cards
 def call_proc(proc_name):
@@ -166,7 +166,7 @@ with ui.navset_pill(id="selected_navset_pill"):
             with ui.sidebar(title="Restaurant Search"):
                 ui.input_selectize(id="searchbar",
                                    label="Search Restaurants",
-                                   choices=['cat', 'car', 'cow', 'cow2', 'cow3'],
+                                   choices=['tango', 'yahoo'],
                                    width='100%')
 
 
