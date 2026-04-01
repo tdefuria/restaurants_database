@@ -27,7 +27,8 @@ def query_for_df(query):
     with conn.cursor() as cur:
         cur.execute(query)
         results = cur.fetchall()
-    return pd.DataFrame(results)
+        columns = [description[0] for description in cur.description]
+    return pd.DataFrame(results, columns=columns)
 
 # title banner - top of screen
 ui.page_opts(
@@ -136,7 +137,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                     conn = cnx()
                     if conn is None:
                         return
-                    df = pd.read_sql("CALL food_inspections.get_violations_by_level()", conn)
+                    df = query_for_df("CALL food_inspections.get_violations_by_level()")
                     fig, ax = plt.subplots()
                     ax.bar(df['violation_level'], df['count'])
                     ax.set_title('Health and Safety Violations by Level')
@@ -164,24 +165,13 @@ with ui.navset_pill(id="selected_navset_pill"):
                     conn = cnx()
                     if conn is None:
                         return
-                    df = pd.read_sql("CALL food_inspections.get_violations_per_year()", conn)
+                    df = query_for_df("CALL food_inspections.get_violations_per_year()")
                     fig, ax = plt.subplots()
                     ax.plot(df['year'], df['count'], marker='o')
                     ax.set_title('Total Violations per Year')
                     ax.set_xlabel('Year')
                     ax.set_ylabel('Count')
                     return fig
-
-            """with ui.card():
-                ui.card_header("test")
-
-                @render.data_frame
-                def populate_search_options():
-                    conn = cnx()
-                    if conn is None:
-                        return pd.DataFrame()
-                    df = pd.read_sql("CALL get_all_restaurants_search_options()", conn)
-                    return df.head(10)"""
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
@@ -201,11 +191,11 @@ with ui.navset_pill(id="selected_navset_pill"):
 def populate_search_options():
     if input.keyword_search() == '': # keyword_search contains the search terms
         df = query_for_df("CALL get_all_restaurants_search_options()")
-        if df is None:
+        if df is None or df.empty:
             return None
         df = df.head(10)
         cols = df.columns
-        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.iloc[1:]),
+        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
                                                   axis=1)
         option_list = df['option'].tolist()
         return option_list
@@ -213,11 +203,11 @@ def populate_search_options():
         with reactive.isolate():
             keywords = input.keyword_search()
         df = query_for_df("CALL search_by_name_restaurant(\'" +keywords+ "\')")
-        if df is None:
+        if df is None or df.empty:
             return None
         df = df.head(10)
         cols = df.columns
-        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.iloc[1:]),
+        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
                                                   axis=1)
         option_list = df['option'].tolist()
         with reactive.isolate():
