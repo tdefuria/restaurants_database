@@ -85,7 +85,7 @@ DELIMITER $$
 CREATE PROCEDURE search_by_name_restaurant(business_name_p varchar(512))
 BEGIN
 
-	SELECT street_num, city FROM restaurant 
+	SELECT business_name, street_num, city FROM restaurant 
 		INNER JOIN address USING (property_id)
         WHERE business_name LIKE (business_name_p);
 END $$
@@ -151,7 +151,7 @@ BEGIN
         )
     WHERE license_num = NEW.license_num;
 END$$
-
+DELIMITER ;
 
 
 -- sandbox
