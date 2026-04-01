@@ -187,7 +187,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                 with ui.layout_columns(fill=False):
                     ui.input_text("keyword_search", '')
                     ui.input_action_button("send_search", "Enter")
-                ui.input_selectize(id="searchbar",
+                ui.input_selectize(id="restaurant_selected",
                                    label="Select Restaurant",
                                    choices=["Click to search"],
                                    width='100%')
@@ -205,6 +205,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                                            inline=True)
                     ui.input_text_area(id="comment", label="Comment:",
                                         value='I ate here!')
+                    ui.input_action_button("send_comment", "Submit")
+
+    # my reviews panel
+    with ui.nav_panel("My Reviews"):
+        pass
 
 
 
@@ -240,20 +245,20 @@ def populate_search_options():
 def update_choices():
     new_choices = populate_search_options()
     ui.update_selectize(
-        'searchbar',
+        'restaurant_selected',
         choices=[],
         selected=None
     )
 
     if new_choices: # only if there are results
         ui.update_selectize(
-            'searchbar',
+            'restaurant_selected',
             choices=new_choices,
             selected=new_choices[0]
         )
     else:
         ui.update_selectize(
-            'searchbar',
+            'restaurant_selected',
             choices=[],
             selected=None
         )
