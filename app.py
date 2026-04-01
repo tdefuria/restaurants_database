@@ -26,7 +26,13 @@ def query_for_df(query):
         return
     with conn.cursor() as cur:
         cur.execute(query)
-        results = cur.fetchall()
+        results = cur.fetchall() # to get every line returned
+        # because the columns are included in the description.
+        # although I can't find documentation in pymysql cursor objects for cur.description,
+        # this stack overflow post has it and I tested that
+        # 1 it causes error from column not found without this line
+        # 2 it contains the columns with their appropriate names with this
+        # https://stackoverflow.com/questions/12704305/return-column-names-from-pyodbc-execute-statement#:~:text=4%20Answers,3%20Comments
         columns = [description[0] for description in cur.description]
     return pd.DataFrame(results, columns=columns)
 
