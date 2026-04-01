@@ -36,6 +36,15 @@ def query_for_df(query):
         columns = [description[0] for description in cur.description]
     return pd.DataFrame(results, columns=columns)
 
+def query_for_dict(query):
+    conn = cnx()
+    if conn is None:
+        return
+    with conn.cursor(sql.cursors.DictCursor) as cur:
+        cur.execute(query)
+        results = cur.fetchall()
+    return results
+
 # title banner - top of screen
 ui.page_opts(
     title="Boston Restaurants: Inspections and Reviews", fillable=False)
@@ -250,32 +259,30 @@ with ui.navset_pill(id="selected_navset_pill"):
     with ui.nav_panel("My Reviews"):
         pass
 
-
+def concatenate_restaurant_results(result_list):
+    if result_list == []:
+        return None
+    option_list = []
+    for i in range(len(result_list)):
+        result_dict = result_list[i]
+        option = f"{result_dict.get('business_name', 'No business name')}"
+        option += f" : {result_dict.get('street_num', 'No street')}"
+        option += f" {result_dict.get('city', 'No city')}"
+        option_list.append(option)
+    return option_list
 
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
     if input.keyword_search() == '': # keyword_search contains the search terms
-        df = query_for_df("CALL get_all_restaurants_search_options()")
-        if df is None or df.empty:
-            return None
-        df = df.head(10)
-        cols = df.columns
-        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
-                                                  axis=1)
-        option_list = df['option'].tolist()
+        result_list = query_for_dict("CALL get_all_restaurants_search_options()")
+        option_list = concatenate_restaurant_results(result_list)
         return option_list
     else:
         with reactive.isolate():
             keywords = input.keyword_search()
-        df = query_for_df("CALL search_by_name_restaurant(\'" +keywords+ "\')")
-        if df is None or df.empty:
-            return None
-        df = df.head(10)
-        cols = df.columns
-        df['option'] = df[cols].astype(str).apply(lambda row: str(row.iloc[0]) + ' : ' + ', '.join(row.values[1:]),
-                                                  axis=1)
-        option_list = df['option'].tolist()
+        result_list = query_for_dict("CALL search_by_name_restaurant(\'" +keywords+ "\')")
+        option_list = concatenate_restaurant_results(result_list)
         with reactive.isolate():
             ui.update_text('keyword_search', value='')
         return option_list
