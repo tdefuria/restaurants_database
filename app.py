@@ -207,6 +207,45 @@ with ui.navset_pill(id="selected_navset_pill"):
                                         value='I ate here!')
                     ui.input_action_button("send_comment", "Submit")
 
+
+                @reactive.effect
+                @reactive.event(input.send_comment)
+                def submit_review():
+                    # check all fields are filled
+                    if not all([input.email(), input.city(), input.state(), input.comment(),
+                                input.restaurant_selected()]):
+                        m = ui.modal(title="Please fill in all fields!", easy_close=True, footer=None)
+                        ui.modal_show(m)
+                        return
+
+                    conn = cnx()
+                    if conn is None:
+                        return
+
+                    # extract license_num from the selected restaurant option
+                    license_num = None
+                    username = input.email()
+
+                    try:
+                        c = conn.cursor()
+
+                        # insert user if they don't already exist
+                        c.callproc('food_inspections.insert_user_if_not_exists',
+                                   (username, input.city(), input.state()))
+
+                        # insert the review (should also trigger updates to restaurant table)
+                        c.callproc('food_inspections.insert_review',
+                                   (license_num, username, input.comment(), input.rating()))
+
+                        conn.commit()
+
+                        m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
+                        ui.modal_show(m)
+
+                    except sql.err.IntegrityError:
+                        m = ui.modal(title="You have already reviewed this restaurant!", easy_close=True, footer=None)
+                        ui.modal_show(m)
+
     # my reviews panel
     with ui.nav_panel("My Reviews"):
         pass
