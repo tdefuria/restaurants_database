@@ -5,6 +5,7 @@ import faicons as fa
 import pymysql as sql
 import pandas as pd
 import matplotlib.pyplot as plt
+from pymysql import err
 
 # save value for database connection (session-specific)
 cnx = reactive.Value()
@@ -21,6 +22,10 @@ def call_proc(proc_name):
     c.callproc(f'food_inspections.{proc_name}')
     return str(c.fetchone()[0])
 
+# helper to display search result count
+def search_result_count():
+    current_dict = license_num_dict.get()
+    return len(current_dict)
 
 # helper function for calling procedures that would return dataframes
 def query_for_df(query):
@@ -39,13 +44,23 @@ def query_for_df(query):
         columns = [description[0] for description in cur.description]
     return pd.DataFrame(results, columns=columns)
 
-def query_for_dict(query):
+# never append to the default param list as that will cause a bug.
+# assumes the call already added parenthesis in the param_list if needed
+def query_for_dict(query, param_list=[]):
     conn = cnx()
     if conn is None:
         return
+    query_string = query + '( ' + ', '.join(param_list) + ' )'
     with conn.cursor(sql.cursors.DictCursor) as cur:
-        cur.execute(query)
-        results = cur.fetchall()
+        try:
+            cur.execute(query_string)
+            results = cur.fetchall()
+        except err.OperationalError as e:
+            # open error modal
+            m = ui.modal(title=str(e).split("\'")[-2], easy_close=True, footer=None)
+            ui.modal_show(m)
+            return
+
     return results
 
 # title banner - top of screen
@@ -199,9 +214,16 @@ with ui.navset_pill(id="selected_navset_pill"):
                 with ui.layout_columns(fill=False):
                     ui.input_text("keyword_search", '')
                     ui.input_action_button("send_search", "Enter")
+
+                @render.text
+                def search_result_count():
+                    count = len(license_num_dict.get())
+                    if (count):
+                        return str(count)+ ' results'
+                    else: return "\n"
                 ui.input_selectize(id="restaurant_selected",
-                                   label="Select Restaurant",
-                                   choices=["Click to search"],
+                                   label="Select below...",
+                                   choices=[],
                                    width='100%')
 
             with ui.layout_columns(fill=False):
@@ -264,56 +286,54 @@ with ui.navset_pill(id="selected_navset_pill"):
         pass
 
 def concatenate_restaurant_results(result_list):
-    if result_list == []:
-        return None
+    if not result_list:
+        return None, None
     option_list = []
-    license_num_dict = {}
+    license_nums = {}
     for i in range(len(result_list)):
         result_dict = result_list[i]
         option = f"{result_dict.get('business_name', 'No business name')}"
         option += f" : {result_dict.get('street_num', 'No street')}"
         option += f" {result_dict.get('city', 'No city')}"
         option_list.append(option)
-        license_num_dict[option] = reactive.Value(result_dict.get('license_num'))
-    return option_list, license_num_dict
-
-
+        license_nums[option] = reactive.Value(result_dict.get('license_num'))
+    return option_list, license_nums
 
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
     if input.keyword_search() == '': # keyword_search contains the search terms
-        result_list = query_for_dict("CALL get_all_restaurants_search_options()")
-        option_list, license_num_dict = concatenate_restaurant_results(result_list)
+        result_list = query_for_dict("CALL get_all_restaurants_search_options")
+        option_list, license_nums = concatenate_restaurant_results(result_list)
     else:
         with reactive.isolate():
             keywords = input.keyword_search()
-        result_list = query_for_dict("CALL search_by_name_restaurant(\'" +keywords+ "\')")
-        option_list, license_num_dict = concatenate_restaurant_results(result_list)
+        result_list = query_for_dict("CALL search_by_name_restaurant", ["\'"+keywords+"\'"])
+        option_list, license_nums = concatenate_restaurant_results(result_list)
         with reactive.isolate():
             ui.update_text('keyword_search', value='')
-    return option_list, license_num_dict
+    return option_list, license_nums
 
 @reactive.effect
 def update_choices():
     new_choices_list, current_license_nums = populate_search_options()
-    license_num_dict.unset()
-    license_num_dict.set(current_license_nums)
     ui.update_selectize(
         'restaurant_selected',
         choices=[],
         selected=None
     )
-
     if new_choices_list: # only if there are results
         ui.update_selectize(
             'restaurant_selected',
             choices=new_choices_list,
             selected=new_choices_list[0]
         )
+        license_num_dict.unset()
+        license_num_dict.set(current_license_nums)
     else:
         ui.update_selectize(
             'restaurant_selected',
             choices=[],
             selected=None
         )
+        license_num_dict.unset()
