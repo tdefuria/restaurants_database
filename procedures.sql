@@ -160,7 +160,106 @@ BEGIN
 END$$
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS get_restaurant_locations;
+DELIMITER $$
+CREATE PROCEDURE get_restaurant_locations()
+BEGIN
+	SELECT latitude, longitude, business_name, 
+		restaurant.license_num, street_num, city 
+			FROM restaurant
+			INNER JOIN address USING (license_num);
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS total_tract_violations;
+DELIMITER $$
+CREATE PROCEDURE total_tract_violations(IN tract_id_p CHAR(11), OUT tract_count_p INT)
+BEGIN
+	SELECT COUNT(*) INTO tract_count_p FROM violation_log
+		INNER JOIN restaurant USING(license_num)
+        INNER JOIN address USING (license_num)
+        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+        INNER JOIN census_block USING (block_id)
+        INNER JOIN census_block_group USING (block_group_id)
+        INNER JOIN census_tract USING (tract_id)
+        WHERE tract_id = tract_id_p;
+END $$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS total_tract_restaurants;
+DELIMITER $$
+CREATE PROCEDURE total_tract_restaurants(IN tract_id_p CHAR(11), OUT tract_count_p INT)
+BEGIN
+	SELECT COUNT(DISTINCT license_num) INTO tract_count_p FROM violation_log
+		INNER JOIN restaurant USING(license_num)
+        INNER JOIN address USING (license_num)
+        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+        INNER JOIN census_block USING (block_id)
+        INNER JOIN census_block_group USING (block_group_id)
+        INNER JOIN census_tract USING (tract_id)
+        WHERE tract_id = tract_id_p;
+END $$
+DELIMITER ;
+
+
+
+DROP PROCEDURE IF EXISTS get_each_tract_violations_count;
+DELIMITER $$
+CREATE PROCEDURE get_each_tract_violations_count()
+BEGIN
+	DECLARE row_not_found INT;
+	DECLARE current_tract_id CHAR(11);
+    DECLARE current_tract_count INT;
+    DECLARE census_tract_c CURSOR FOR
+		SELECT tract_id FROM census_tract;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+		SET row_not_found = TRUE;
+	-- handle errors as needed
+    SET row_not_found = FALSE;
+    OPEN census_tract_c;
+    WHILE row_not_found = FALSE DO
+		FETCH census_tract_c INTO current_tract_id;
+        SET current_tract_count = 0;
+		CALL total_tract_violations(current_tract_id, current_tract_count);
+        SELECT current_tract_id, current_tract_count;
+	END WHILE;
+END $$
+DELIMITER ;
+
 -- sandbox
+-- get_restaurant_locations testing
+CALL get_restaurant_locations;
+
+-- total_tract_violations
+SET @tc = 0;
+CALL total_tract_violations('25025010405', @tc);
+SELECT @tc;
+CALL get_each_tract_violations_count();
+
+SET @tcr = 0;
+CALL total_tract_restaurants('25025010405', @tcr);
+SELECT @tcr;
+
+SELECT @tc / @tcr AS violations_per_restaurant;
+
+	SELECT COUNT(DISTINCT license_num) FROM violation_log
+		INNER JOIN restaurant USING(license_num)
+        INNER JOIN address USING (license_num)
+        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+        INNER JOIN census_block USING (block_id)
+        INNER JOIN census_block_group USING (block_group_id)
+        INNER JOIN census_tract USING (tract_id)
+        WHERE tract_id = '25025010405';
+	
+	SELECT DISTINCT license_num, business_name, street_num, city FROM violation_log
+		INNER JOIN restaurant USING(license_num)
+        INNER JOIN address USING (license_num)
+        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+        INNER JOIN census_block USING (block_id)
+        INNER JOIN census_block_group USING (block_group_id)
+        INNER JOIN census_tract USING (tract_id)
+        WHERE tract_id = '25025010405';
+        
 SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
 CALL get_restaurant_violations(18174); -- 41 rows
 SELECT * FROM review WHERE license_num = 18678;
