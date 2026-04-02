@@ -84,6 +84,9 @@ DELIMITER $$
 -- Returns the street and city for restaurants with names like the search
 CREATE PROCEDURE search_by_name_restaurant(business_name_p varchar(512))
 BEGIN
+	IF ((SELECT COUNT(license_num) FROM restaurant WHERE business_name LIKE (CONCAT('%', business_name_p, '%'))) = 0)
+		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "No restaurant found by that keyword in the violations database"; 
+	END IF;
 	SELECT restaurant.license_num, business_name, street_num, city FROM restaurant 
 		INNER JOIN address USING (property_id)
         WHERE business_name LIKE (CONCAT('%', business_name_p, '%'));
@@ -94,7 +97,12 @@ DROP PROCEDURE IF EXISTS get_restaurant_violations;
 DELIMITER $$
 CREATE PROCEDURE get_restaurant_violations(license_num_p INT)
 BEGIN
-	SELECT * FROM violation_log WHERE license_num = license_num_p;
+	-- UNLIKELY to happen, because we plan to use this only after retrieving the license_nums from the database
+	IF ((SELECT COUNT(*) FROM restaurant WHERE license_num = license_num_p) = 0)
+		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "Restaurant not found by that keyword in the violations database";
+	END IF;
+	SELECT * FROM violation_log 
+		INNER JOIN violation_key USING (type_code) WHERE license_num = license_num_p;
 END $$
 DELIMITER ;
 
@@ -152,20 +160,22 @@ BEGIN
 END$$
 DELIMITER ;
 
-
 -- sandbox
 SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
 CALL get_restaurant_violations(18174); -- 41 rows
 SELECT * FROM review WHERE license_num = 18678;
 CALL search_by_name_restaurant('Dunkin'); -- 3
 CALL search_by_name_restaurant('Nero');
+CALL search_by_name_restaurant('Frosty');
 CALL search_by_name_restaurant('Legal');
+CALL search_by_name_restaurant('Thorntons');
 CALL get_all_restaurants_search_options;
 CALL search_by_name_restaurant('Williams'); -- 0
 SELECT business_name, street_num, city FROM restaurant
 	INNER JOIN address USING (property_id)
 	WHERE business_name LIKE ('%Sea%');
-
+SELECT * FROM review WHERE license_num = 76498;
+CALL get_restaurant_violations(18174);
 SET @vc = 0;
 CALL get_restaurant_violations_count(18174, @vc);
 SELECT @vc; -- 41 ( matches CALL get_restaurant_violations(18174) rows )
