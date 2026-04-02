@@ -274,6 +274,11 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                         conn.commit()
 
+                        # clear review form
+                        ui.update_text('email', value='')
+                        ui.update_text('city', value='')
+                        ui.update_text('state', value='')
+
                         m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(m)
 
