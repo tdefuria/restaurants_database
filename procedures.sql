@@ -222,7 +222,6 @@ BEGIN
 		CALL total_tract_violations(current_tract_id, current_tract_count);
         SELECT current_tract_id, current_tract_count;
 	END WHILE;
-    DROP TEMPORARY TABLE result;
 END $$
 DELIMITER ;
 
@@ -266,7 +265,6 @@ BEGIN
     DELETE FROM review
     WHERE license_num = p_license_num AND username = p_username;
 END$$
-
 DELIMITER ;
 
 DROP TRIGGER IF EXISTS after_review_update;
@@ -283,7 +281,6 @@ BEGIN
     )
     WHERE license_num = NEW.license_num;
 END$$
-
 DELIMITER ;
 
 DROP TRIGGER IF EXISTS after_review_delete;
@@ -301,6 +298,7 @@ BEGIN
         )
     WHERE license_num = OLD.license_num;
 END$$
+DELIMITER ;
 
 -- sandbox
 
@@ -359,7 +357,7 @@ END$$
 	CALL search_by_name_restaurant('Dunkin'); -- 83 when joined using property_num
     -- 64 when joined using license_num??
 	CALL search_by_name_restaurant('Nero');
-	CALL search_by_name_restaurant('Frosty');
+	-- CALL search_by_name_restaurant('Frosty');
 	CALL search_by_name_restaurant('Legal');
 	CALL search_by_name_restaurant('Thorntons');
 	CALL get_all_restaurants_search_options;
