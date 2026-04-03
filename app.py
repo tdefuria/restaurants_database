@@ -439,10 +439,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                                                class_="btn-danger"), #btn-danger -> red!
                     )
 
-
-# reactive value for reviews data - keyed by option string, value is full row dict
-my_reviews_dict = reactive.Value({})
-
 @reactive.effect
 @reactive.event(input.find_reviews)
 def load_my_reviews():
