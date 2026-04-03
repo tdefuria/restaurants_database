@@ -222,17 +222,19 @@ BEGIN
 		CALL total_tract_violations(current_tract_id, current_tract_count);
         SELECT current_tract_id, current_tract_count;
 	END WHILE;
-    DROP TEMPORARY TABLE result;
 END $$
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS get_reviews_by_user;
+DELIMITER $$
 CREATE PROCEDURE get_reviews_by_user(IN p_username VARCHAR(32))
 BEGIN
     SELECT r.license_num, res.business_name, r.rating, r.review_comment, r.review_date
     FROM review r
     JOIN restaurant res USING (license_num)
     WHERE r.username = p_username;
-END;
+END$$
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS update_review;
 DELIMITER $$
@@ -262,8 +264,9 @@ BEGIN
     DELETE FROM review
     WHERE license_num = p_license_num AND username = p_username;
 END$$
+DELIMITER ;
 
-
+DROP TRIGGER IF EXISTS after_review_update;
 DELIMITER $$
 CREATE TRIGGER after_review_update
 AFTER UPDATE ON review
@@ -276,8 +279,10 @@ BEGIN
         WHERE license_num = NEW.license_num
     )
     WHERE license_num = NEW.license_num;
-END;
+END$$
+DELIMITER ;
 
+DROP TRIGGER IF EXISTS after_review_delete;
 DELIMITER $$
 CREATE TRIGGER after_review_delete
 AFTER DELETE ON review
@@ -292,6 +297,7 @@ BEGIN
         )
     WHERE license_num = OLD.license_num;
 END$$
+DELIMITER ;
 
 -- sandbox
 
@@ -350,7 +356,7 @@ END$$
 	CALL search_by_name_restaurant('Dunkin'); -- 83 when joined using property_num
     -- 64 when joined using license_num??
 	CALL search_by_name_restaurant('Nero');
-	CALL search_by_name_restaurant('Frosty');
+	-- CALL search_by_name_restaurant('Frosty');
 	CALL search_by_name_restaurant('Legal');
 	CALL search_by_name_restaurant('Thorntons');
 	CALL get_all_restaurants_search_options;

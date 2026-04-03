@@ -209,33 +209,6 @@ with ui.navset_pill(id="selected_navset_pill"):
 
         with ui.layout_columns(fill=False):
 
-            @render_plotly
-            def census_map_home():
-                fig = copy.deepcopy(all_tables_fig.get())
-                req(fig.data or fig.layout.map)
-                conn = cnx()
-                if conn is None:
-                    return fig
-                df = query_for_df('CALL get_restaurant_locations()')
-                columns_dict = {col: i for i, col in enumerate(df.columns)}
-                business_idx = columns_dict['business_name']
-                city_idx = columns_dict['city']
-                street_idx = columns_dict['street_num']
-                fig.add_trace(go.Scattermap(
-                    lat=df['latitude'],
-                    lon=df['longitude'],
-                    customdata=df,
-                    mode='markers',
-                    hovertemplate="<b> %{customdata[" + str(business_idx) + "]} <br>"
-                                                                            " %{customdata[" + str(street_idx) + "]} " +
-                                  " %{customdata[" + str(city_idx) + "]}</b><br></br>" +
-                                  "<b>violations in this time frame.</b><extra></extra>",
-                    name='all_restaurants'
-                ))
-                return fig
-
-        with ui.layout_columns(fill=False):
-
             # plot of violations per level
             with ui.card():
                 ui.card_header("Violations by Level")
@@ -280,6 +253,32 @@ with ui.navset_pill(id="selected_navset_pill"):
                     ax.set_xlabel('Year')
                     ax.set_ylabel('Count')
                     return fig
+        with ui.layout_columns(fill=False):
+
+            @render_plotly
+            def census_map_home():
+                fig = copy.deepcopy(all_tables_fig.get())
+                req(fig.data or fig.layout.map)
+                conn = cnx()
+                if conn is None:
+                    return fig
+                df = query_for_df('CALL get_restaurant_locations()')
+                columns_dict = {col: i for i, col in enumerate(df.columns)}
+                business_idx = columns_dict['business_name']
+                city_idx = columns_dict['city']
+                street_idx = columns_dict['street_num']
+                fig.add_trace(go.Scattermap(
+                    lat=df['latitude'],
+                    lon=df['longitude'],
+                    customdata=df,
+                    mode='markers',
+                    hovertemplate="<b> %{customdata[" + str(business_idx) + "]} <br>"
+                                                                            " %{customdata[" + str(street_idx) + "]} " +
+                                  " %{customdata[" + str(city_idx) + "]}</b><br></br>" +
+                                  "<b>violations in this time frame.</b><extra></extra>",
+                    name='all_restaurants'
+                ))
+                return fig
 
     # Restaurant Search panel
     with ui.nav_panel("Search Restaurants"):
@@ -439,10 +438,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                         ui.input_action_button("delete_review_btn", "Delete Review",
                                                class_="btn-danger"), #btn-danger -> red!
                     )
-
-
-# reactive value for reviews data - keyed by option string, value is full row dict
-my_reviews_dict = reactive.Value({})
 
 @reactive.effect
 @reactive.event(input.find_reviews)
