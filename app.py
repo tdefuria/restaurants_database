@@ -1,14 +1,17 @@
-
+import plotly.graph_objects as go
 from shiny import reactive, req
 from shiny.express import input, render, ui
+from shinywidgets import render_plotly
 import faicons as fa
 import pymysql as sql
 import pandas as pd
+import copy
 import matplotlib.pyplot as plt
 from pymysql import err
+import json
 
 # save value for database connection (session-specific)
-cnx = reactive.Value()
+cnx = reactive.value(None)
 
 # license_num values available (session-specific)
 license_num_dict = reactive.Value()
@@ -63,10 +66,15 @@ def query_for_dict(query, param_list=[]):
 
     return results
 
-# title banner - top of screen
+# Title banner - top of screen
 ui.page_opts(
     title="Boston Restaurants: Inspections and Reviews", fillable=False)
 
+# Import Census Tract Shapes
+def census_shapes():
+    with open("shapes/Census_2010_Tracts.json", 'r') as f:
+        geojson_data = json.load(f)
+    return geojson_data
 
 # Action button - database log-in
 ui.input_action_button("login", "Login to database")
@@ -86,6 +94,43 @@ def show_login_modal():
         footer=None,
     )
     ui.modal_show(m)
+
+all_tables_fig = reactive.Value(go.Figure())
+restaurant_search_fig = reactive.Value(go.Figure())
+
+@reactive.effect
+def plot_basis():
+    fig = go.Figure()
+    ids = []
+    shapes = census_shapes()
+    for f in shapes['features']:
+        # Grab the ID from inside the properties of this specific feature
+        tract_id = f['properties']['GEOID10']
+        # Add it to our list
+        ids.append(tract_id)
+    # update z values for actual data (total up violations / restaurant for that area)
+    z_c = [1] * len(ids)
+    fig.add_trace(go.Choroplethmap(
+        geojson=shapes,
+        featureidkey='properties.GEOID10',  # This is how to reference the tract names (11 digits)
+        z=z_c,  # update with any data to differentiate the tracts. Default 1 keeps colors constant.
+        locations=ids,  # these correspond to the 11 digit tract_ids in our database
+        marker_opacity=0.2,
+        marker_line_width=2,
+        marker_line_color="blue",
+        name='Basemap'
+    ))
+    fig.update_layout(
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        mapbox_style='open_street_map',
+        map=dict(
+            center=dict(lat=42.3560, lon=-71.0724),  # Boston decimal center coordinates
+            zoom=12  # Zoom to a reasonable scope (User can scroll in/out once the map is up)
+        )
+    )
+    all_tables_fig.unset()
+    all_tables_fig.set(fig)
+    restaurant_search_fig.set(fig)
 
 # mysql connection attempt
 @reactive.effect
@@ -161,6 +206,33 @@ with ui.navset_pill(id="selected_navset_pill"):
 
         with ui.layout_columns(fill=False):
 
+            @render_plotly
+            def census_map_home():
+                fig = copy.deepcopy(all_tables_fig.get())
+                req(fig.data or fig.layout.map)
+                conn = cnx()
+                if conn is None:
+                    return fig
+                df = query_for_df('CALL get_restaurant_locations()')
+                columns_dict = {col: i for i, col in enumerate(df.columns)}
+                business_idx = columns_dict['business_name']
+                city_idx = columns_dict['city']
+                street_idx = columns_dict['street_num']
+                fig.add_trace(go.Scattermap(
+                    lat=df['latitude'],
+                    lon=df['longitude'],
+                    customdata=df,
+                    mode='markers',
+                    hovertemplate="<b> %{customdata[" + str(business_idx) + "]} <br>"
+                                                                            " %{customdata[" + str(street_idx) + "]} " +
+                                  " %{customdata[" + str(city_idx) + "]}</b><br></br>" +
+                                  "<b>violations in this time frame.</b><extra></extra>",
+                    name='all_restaurants'
+                ))
+                return fig
+
+        with ui.layout_columns(fill=False):
+
             # plot of violations per level
             with ui.card():
                 ui.card_header("Violations by Level")
@@ -222,9 +294,27 @@ with ui.navset_pill(id="selected_navset_pill"):
                         return str(count)+ ' results'
                     else: return "\n"
                 ui.input_selectize(id="restaurant_selected",
-                                   label="Select below...",
+                                   label="Select or search below...",
                                    choices=[],
                                    width='100%')
+
+            with ui.layout_columns(fill=False):
+
+                @render.text
+                @reactive.event(input.send_search)
+                def search_result_title():
+                    with reactive.isolate():
+                        search_title = input.keyword_search() if input else "No"
+                    return f'\"{search_title}\" Search Results'
+
+
+            with ui.layout_columns(fill=False):
+
+                @render_plotly
+                def census_map_search():
+                    search_fig = restaurant_search_fig.get()
+                    req(search_fig is not None and (search_fig.data or search_fig.layout.map))
+                    return search_fig
 
             with ui.layout_columns(fill=False):
                 # review survey box
@@ -293,48 +383,70 @@ with ui.navset_pill(id="selected_navset_pill"):
 def concatenate_restaurant_results(result_list):
     if not result_list:
         return None, None
-    option_list = []
+    # option_list = []
+    rows = []
     license_nums = {}
     for i in range(len(result_list)):
         result_dict = result_list[i]
-        option = f"{result_dict.get('business_name', 'No business name')}"
-        option += f" : {result_dict.get('street_num', 'No street')}"
+        #option = f"{result_dict.get('business_name', 'No business name')}"
+        option = f"{result_dict.get('street_num', 'No street')}"
         option += f" {result_dict.get('city', 'No city')}"
-        option_list.append(option)
+        rows.append({'options': option,
+                                  'latitude': result_dict.get('latitude'),
+                                  'longitude': result_dict.get('longitude')})
+        # option_list.append(option)
         license_nums[option] = reactive.Value(result_dict.get('license_num'))
-    return option_list, license_nums
+    results_df = pd.DataFrame(rows)
+    # return option_list, license_nums
+    return results_df, license_nums
 
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
     if input.keyword_search() == '': # keyword_search contains the search terms
         result_list = query_for_dict("CALL get_all_restaurants_search_options")
-        option_list, license_nums = concatenate_restaurant_results(result_list)
+        #option_list,
+        results_df, license_nums = concatenate_restaurant_results(result_list)
     else:
         with reactive.isolate():
             keywords = input.keyword_search()
         result_list = query_for_dict("CALL search_by_name_restaurant", ["\'"+keywords+"\'"])
-        option_list, license_nums = concatenate_restaurant_results(result_list)
-        with reactive.isolate():
-            ui.update_text('keyword_search', value='')
-    return option_list, license_nums
+        #option_list,
+        results_df, license_nums = concatenate_restaurant_results(result_list)
+        """with reactive.isolate():
+            ui.update_text('keyword_search', value='')"""
+            #option_list
+    return results_df, license_nums
 
 @reactive.effect
 def update_choices():
-    new_choices_list, current_license_nums = populate_search_options()
+    #new_choices_list,
+    results_df, current_license_nums = populate_search_options()
     ui.update_selectize(
         'restaurant_selected',
         choices=[],
         selected=None
     )
-    if new_choices_list: # only if there are results
+    base_fig = copy.deepcopy(all_tables_fig.get())
+
+    restaurant_search_fig.unset()
+    if results_df.empty == False: # only if there are results
         ui.update_selectize(
             'restaurant_selected',
-            choices=new_choices_list,
-            selected=new_choices_list[0]
+            choices=results_df['options'].tolist(),
+            selected=results_df['options'].tolist()[0]
         )
         license_num_dict.unset()
         license_num_dict.set(current_license_nums)
+        base_fig.add_trace(go.Scattermap(
+            lat=results_df['latitude'],
+            lon=results_df['longitude'],
+            customdata=results_df,
+            mode='markers',
+            hovertemplate="<b>%{customdata["+str(0)+"]}</b>" +
+                          "<b>violations in this time frame.</b><extra></extra>",
+            name='all_restaurants'
+        ))
     else:
         ui.update_selectize(
             'restaurant_selected',
@@ -342,3 +454,4 @@ def update_choices():
             selected=None
         )
         license_num_dict.unset()
+    restaurant_search_fig.set(base_fig)

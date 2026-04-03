@@ -87,9 +87,10 @@ BEGIN
 	IF ((SELECT COUNT(license_num) FROM restaurant WHERE business_name LIKE (CONCAT('%', business_name_p, '%'))) = 0)
 		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "No restaurant found by that keyword in the violations database"; 
 	END IF;
-	SELECT restaurant.license_num, business_name, street_num, city FROM restaurant 
-		INNER JOIN address USING (property_id)
-        WHERE business_name LIKE (CONCAT('%', business_name_p, '%'));
+	SELECT latitude, longitude, 
+		restaurant.license_num, business_name, street_num, city FROM restaurant 
+			INNER JOIN address USING (property_id)
+			WHERE business_name LIKE (CONCAT('%', business_name_p, '%'));
 END $$
 DELIMITER ;
 
@@ -201,8 +202,6 @@ BEGIN
 END $$
 DELIMITER ;
 
-
-
 DROP PROCEDURE IF EXISTS get_each_tract_violations_count;
 DELIMITER $$
 CREATE PROCEDURE get_each_tract_violations_count()
@@ -223,65 +222,84 @@ BEGIN
 		CALL total_tract_violations(current_tract_id, current_tract_count);
         SELECT current_tract_id, current_tract_count;
 	END WHILE;
+    DROP TEMPORARY TABLE result;
 END $$
 DELIMITER ;
 
 -- sandbox
--- get_restaurant_locations testing
-CALL get_restaurant_locations;
 
--- total_tract_violations
-SET @tc = 0;
-CALL total_tract_violations('25025010405', @tc);
-SELECT @tc;
-CALL get_each_tract_violations_count();
+	SELECT * FROM restaurant;
 
-SET @tcr = 0;
-CALL total_tract_restaurants('25025010405', @tcr);
-SELECT @tcr;
+	-- get_restaurant_locations testing
+	CALL get_restaurant_locations;
 
-SELECT @tc / @tcr AS violations_per_restaurant;
+	SELECT tract_id, 
+		COUNT(*) AS violation_count,
+		COUNT(DISTINCT restaurant.license_num) AS restaurant_count,
+		(COUNT(*) / COUNT(DISTINCT restaurant.license_num)) AS violation_density
+		FROM violation_log
+			INNER JOIN restaurant USING(license_num)
+			INNER JOIN address USING (license_num)
+			INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+			INNER JOIN census_block USING (block_id)
+			INNER JOIN census_block_group USING (block_group_id)
+			INNER JOIN census_tract USING (tract_id)
+			WHERE tract_id
+			GROUP BY tract_id;
 
-	SELECT COUNT(DISTINCT license_num) FROM violation_log
-		INNER JOIN restaurant USING(license_num)
-        INNER JOIN address USING (license_num)
-        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
-        INNER JOIN census_block USING (block_id)
-        INNER JOIN census_block_group USING (block_group_id)
-        INNER JOIN census_tract USING (tract_id)
-        WHERE tract_id = '25025010405';
-	
-	SELECT DISTINCT license_num, business_name, street_num, city FROM violation_log
-		INNER JOIN restaurant USING(license_num)
-        INNER JOIN address USING (license_num)
-        INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
-        INNER JOIN census_block USING (block_id)
-        INNER JOIN census_block_group USING (block_group_id)
-        INNER JOIN census_tract USING (tract_id)
-        WHERE tract_id = '25025010405';
-        
-SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
-CALL get_restaurant_violations(18174); -- 41 rows
-SELECT * FROM review WHERE license_num = 18678;
-CALL search_by_name_restaurant('Dunkin'); -- 3
-CALL search_by_name_restaurant('Nero');
-CALL search_by_name_restaurant('Frosty');
-CALL search_by_name_restaurant('Legal');
-CALL search_by_name_restaurant('Thorntons');
-CALL get_all_restaurants_search_options;
-CALL search_by_name_restaurant('Williams'); -- 0
-SELECT business_name, street_num, city FROM restaurant
-	INNER JOIN address USING (property_id)
-	WHERE business_name LIKE ('%Sea%');
-SELECT * FROM review WHERE license_num = 76498;
-CALL get_restaurant_violations(18174);
-SET @vc = 0;
-CALL get_restaurant_violations_count(18174, @vc);
-SELECT @vc; -- 41 ( matches CALL get_restaurant_violations(18174) rows )
+	-- total_tract_violations
+	SET @tc = 0;
+	CALL total_tract_violations('25025010405', @tc);
+	SELECT @tc;
+	CALL get_each_tract_violations_count();
 
-SELECT violation_level, COUNT(*) as count
-FROM violation_key
-GROUP BY violation_level
-ORDER BY count DESC;
+	SET @tcr = 0;
+	CALL total_tract_restaurants('25025010405', @tcr);
+	SELECT @tcr;
 
-SELECT * FROM restaurant;
+	SELECT @tc / @tcr AS violations_per_restaurant;
+
+		SELECT COUNT(DISTINCT license_num) FROM violation_log
+			INNER JOIN restaurant USING(license_num)
+			INNER JOIN address USING (license_num)
+			INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+			INNER JOIN census_block USING (block_id)
+			INNER JOIN census_block_group USING (block_group_id)
+			INNER JOIN census_tract USING (tract_id)
+			WHERE tract_id = '25025010405';
+		
+		SELECT DISTINCT license_num, business_name, street_num, city FROM violation_log
+			INNER JOIN restaurant USING(license_num)
+			INNER JOIN address USING (license_num)
+			INNER JOIN land_parcel ON land_parcel.land_parcel_id = address.land_parcel_id
+			INNER JOIN census_block USING (block_id)
+			INNER JOIN census_block_group USING (block_group_id)
+			INNER JOIN census_tract USING (tract_id)
+			WHERE tract_id = '25025010405';
+			
+	SELECT * FROM restaurant WHERE business_name LIKE ('%Dunkin%');
+	CALL get_restaurant_violations(18174); -- 41 rows
+	SELECT * FROM review WHERE license_num = 18678;
+	CALL search_by_name_restaurant('Dunkin'); -- 83 when joined using property_num
+    -- 64 when joined using license_num??
+	CALL search_by_name_restaurant('Nero');
+	CALL search_by_name_restaurant('Frosty');
+	CALL search_by_name_restaurant('Legal');
+	CALL search_by_name_restaurant('Thorntons');
+	CALL get_all_restaurants_search_options;
+	CALL search_by_name_restaurant('Williams'); -- 0
+	SELECT business_name, street_num, city FROM restaurant
+		INNER JOIN address USING (property_id)
+		WHERE business_name LIKE ('%Sea%');
+	SELECT * FROM review WHERE license_num = 76498;
+	CALL get_restaurant_violations(18174);
+	SET @vc = 0;
+	CALL get_restaurant_violations_count(18174, @vc);
+	SELECT @vc; -- 41 ( matches CALL get_restaurant_violations(18174) rows )
+
+	SELECT violation_level, COUNT(*) as count
+	FROM violation_key
+	GROUP BY violation_level
+	ORDER BY count DESC;
+
+	SELECT * FROM restaurant;
