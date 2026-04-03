@@ -14,7 +14,7 @@ import json
 cnx = reactive.value(None)
 
 # license_num values available (session-specific)
-license_num_dict = reactive.Value()
+license_num_dict = reactive.Value({})
 
 # reactive value for reviews data - keyed by option string, value is full row dict
 my_reviews_dict = reactive.Value({})
@@ -104,7 +104,7 @@ restaurant_search_fig = reactive.Value(go.Figure())
 @reactive.effect
 def plot_basis():
     fig = go.Figure()
-    ids = []
+    ids = [] # empty list for census tracts
     shapes = census_shapes()
     for f in shapes['features']:
         # Grab the ID from inside the properties of this specific feature
@@ -306,8 +306,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                 @reactive.event(input.send_search)
                 def search_result_title():
                     with reactive.isolate():
-                        search_title = input.keyword_search() if input else "No"
-                    return f'\"{search_title}\" Search Results'
+                        if not input.keyword_search():
+                            return ""
+                        search_title = input.keyword_search() if (cnx() and input.keyword_search()) else "No"
+                        search_title = f'\"{search_title}\" '
+                    return f'{search_title}Search Results'
 
 
             with ui.layout_columns(fill=False):
@@ -442,7 +445,11 @@ with ui.navset_pill(id="selected_navset_pill"):
 @reactive.effect
 @reactive.event(input.find_reviews)
 def load_my_reviews():
-    if not input.my_email():
+    if not cnx():
+        m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return
+    elif not input.my_email():
         m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
         ui.modal_show(m)
         return
@@ -547,10 +554,14 @@ def concatenate_restaurant_results(result_list):
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
-    if input.keyword_search() == '': # keyword_search contains the search terms
-        result_list = query_for_dict("CALL get_all_restaurants_search_options")
-        #option_list,
-        results_df, license_nums = concatenate_restaurant_results(result_list)
+    if not cnx():
+        m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return pd.DataFrame(), license_num_dict.get()
+    elif not input.keyword_search(): # keyword_search contains the search terms
+        m = ui.modal(title="Please enter an keyword search!", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return pd.DataFrame(), license_num_dict.get()
     else:
         with reactive.isolate():
             keywords = input.keyword_search()
@@ -559,7 +570,7 @@ def populate_search_options():
         results_df, license_nums = concatenate_restaurant_results(result_list)
         """with reactive.isolate():
             ui.update_text('keyword_search', value='')"""
-            #option_list
+        #option_list
     return results_df, license_nums
 
 @reactive.effect
