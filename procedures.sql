@@ -267,7 +267,9 @@ BEGIN
     WHERE license_num = p_license_num AND username = p_username;
 END$$
 
+DELIMITER ;
 
+DROP TRIGGER IF EXISTS after_review_update;
 DELIMITER $$
 CREATE TRIGGER after_review_update
 AFTER UPDATE ON review
@@ -280,8 +282,11 @@ BEGIN
         WHERE license_num = NEW.license_num
     )
     WHERE license_num = NEW.license_num;
-END;
+END$$
 
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS after_review_delete;
 DELIMITER $$
 CREATE TRIGGER after_review_delete
 AFTER DELETE ON review
