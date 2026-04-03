@@ -201,8 +201,6 @@ BEGIN
 END $$
 DELIMITER ;
 
-
-
 DROP PROCEDURE IF EXISTS get_each_tract_violations_count;
 DELIMITER $$
 CREATE PROCEDURE get_each_tract_violations_count()
@@ -225,6 +223,73 @@ BEGIN
 	END WHILE;
 END $$
 DELIMITER ;
+
+CREATE PROCEDURE get_reviews_by_user(IN p_username VARCHAR(32))
+BEGIN
+    SELECT r.license_num, res.business_name, r.rating, r.review_comment, r.review_date
+    FROM review r
+    JOIN restaurant res USING (license_num)
+    WHERE r.username = p_username;
+END;
+
+DROP PROCEDURE IF EXISTS update_review;
+DELIMITER $$
+CREATE PROCEDURE update_review(
+    IN p_license_num INT,
+    IN p_username VARCHAR(32),
+    IN p_comment TEXT,
+    IN p_rating ENUM('0','1','2','3','4','5')
+)
+BEGIN
+    UPDATE review
+    SET review_comment = p_comment,
+        rating = p_rating,
+        review_date = CURDATE()
+    WHERE license_num = p_license_num AND username = p_username;
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS delete_review;
+DELIMITER $$
+CREATE PROCEDURE delete_review(
+    IN p_license_num INT,
+    IN p_username VARCHAR(32)
+)
+BEGIN
+    DELETE FROM review
+    WHERE license_num = p_license_num AND username = p_username;
+END$$
+
+
+DELIMITER $$
+CREATE TRIGGER after_review_update
+AFTER UPDATE ON review
+FOR EACH ROW
+BEGIN
+    UPDATE restaurant
+    SET avg_rating = (
+        SELECT AVG(CAST(rating AS DECIMAL))
+        FROM review
+        WHERE license_num = NEW.license_num
+    )
+    WHERE license_num = NEW.license_num;
+END;
+
+DELIMITER $$
+CREATE TRIGGER after_review_delete
+AFTER DELETE ON review
+FOR EACH ROW
+BEGIN
+    UPDATE restaurant
+    SET review_count = GREATEST(review_count - 1, 0),
+        avg_rating = (
+            SELECT AVG(CAST(rating AS DECIMAL))
+            FROM review
+            WHERE license_num = OLD.license_num
+        )
+    WHERE license_num = OLD.license_num;
+END$$
 
 -- sandbox
 -- get_restaurant_locations testing
