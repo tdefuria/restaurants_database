@@ -226,13 +226,17 @@ BEGIN
 END $$
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS get_reviews_by_user;
+DELIMITER $$
 CREATE PROCEDURE get_reviews_by_user(IN p_username VARCHAR(32))
 BEGIN
     SELECT r.license_num, res.business_name, r.rating, r.review_comment, r.review_date
     FROM review r
     JOIN restaurant res USING (license_num)
     WHERE r.username = p_username;
-END;
+END$$
+
+DELIMITER ;
 
 DROP PROCEDURE IF EXISTS update_review;
 DELIMITER $$
