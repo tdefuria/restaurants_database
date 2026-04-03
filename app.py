@@ -13,6 +13,9 @@ cnx = reactive.Value()
 # license_num values available (session-specific)
 license_num_dict = reactive.Value()
 
+# reactive value for reviews data - keyed by option string, value is full row dict
+my_reviews_dict = reactive.Value({})
+
 # helper function for calling processes in value cards
 def call_proc(proc_name):
     conn = cnx()
@@ -232,7 +235,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                     ui.card_header("Review this restaurant!")
                     ui.input_text("email", 'Email Address')
                     ui.input_text("city", 'City')
-                    ui.input_text("state", 'State')
+                    ui.input_text("state", "State (e.g. MA)")
+                    # shiny doesn't limit input size, found this through google/stackoverflow:
+                    ui.tags.script("""
+                        document.getElementById('state').setAttribute('maxlength', '2');
+                    """)
                     ui.input_radio_buttons(id="rating", label="Rating:",
                                             choices=["0", "1", "2", "3", "4", "5"],
                                            inline=True)
@@ -248,6 +255,12 @@ with ui.navset_pill(id="selected_navset_pill"):
                     if not all([input.email(), input.city(), input.state(), input.comment(),
                                 input.restaurant_selected()]):
                         m = ui.modal(title="Please fill in all fields!", easy_close=True, footer=None)
+                        ui.modal_show(m)
+                        return
+                    # error handling - input for state must be two characters
+                    if len(input.state()) > 2:
+                        m = ui.modal(title="Please enter a 2-letter state abbreviation (e.g. MA)!",
+                                     easy_close=True, footer=None)
                         ui.modal_show(m)
                         return
 
@@ -288,7 +301,143 @@ with ui.navset_pill(id="selected_navset_pill"):
 
     # my reviews panel
     with ui.nav_panel("My Reviews"):
-        pass
+        with ui.layout_sidebar():
+            # search for your reviews using your email address
+            with ui.sidebar(title="Find My Reviews"):
+                # search email
+                ui.input_text("my_email", "Enter your email address:")
+                # action button for search
+                ui.input_action_button("find_reviews", "Find Reviews")
+                # all reviews associated with your email will populate selectizer
+                ui.input_selectize(id="review_selected",
+                                   label="Select a review to edit:",
+                                   choices=[],
+                                   width='100%')
+
+            with ui.card():
+                ui.card_header("Edit Review")
+
+                # using render.ui so that the below only appear if a review is selected
+                @render.ui
+                def edit_review_form():
+                    if not input.review_selected() or input.review_selected() == '':
+                        return ui.p("Select a review from the sidebar to edit it.")
+
+                    # find the selected review in the "get reviews" query
+                    row = my_reviews_dict().get(input.review_selected())
+                    if row is None:
+                        return ui.p("No review data found.")
+
+                    # using html tools for "prettier" html formatting: p = paragraph, em = emphasis
+                    return ui.TagList(
+                        ui.p(ui.strong(row['business_name'])),
+                        ui.input_radio_buttons(
+                            id="edit_rating",
+                            label="Rating:",
+                            choices=["0", "1", "2", "3", "4", "5"],
+                            selected=str(row['rating']),
+                            inline=True
+                        ),
+                        ui.input_text_area(
+                            id="edit_comment",
+                            label="Comment:",
+                            value=row['review_comment']
+                        ),
+                        ui.p(ui.em(f"Originally reviewed: {row['review_date']}")),
+                        ui.input_action_button("update_review_btn", "Update Review",
+                                               class_="btn-primary"),
+                        ui.input_action_button("delete_review_btn", "Delete Review",
+                                               class_="btn-danger"), #btn-danger -> red!
+                    )
+
+
+# reactive value for reviews data - keyed by option string, value is full row dict
+my_reviews_dict = reactive.Value({})
+
+@reactive.effect
+@reactive.event(input.find_reviews)
+def load_my_reviews():
+    if not input.my_email():
+        m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return
+    conn = cnx()
+    if conn is None:
+        return
+    # find all reviews from user's email
+    with conn.cursor(sql.cursors.DictCursor) as cur:
+        cur.callproc("food_inspections.get_reviews_by_user", (input.my_email(),))
+        results = cur.fetchall()
+
+    if not results:
+        m = ui.modal(title="No reviews found for this email.", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return
+
+    # put results in dictionary
+    d = {}
+    for row in results:
+        option = f"{row['business_name']} : {row['review_date']} : {row['rating']}★"
+        d[option] = row
+
+    # update selectizer with query results
+    my_reviews_dict.set(d)
+    options = list(d.keys())
+    ui.update_selectize('review_selected', choices=options, selected=options[0])
+
+@reactive.effect
+@reactive.event(input.update_review_btn)
+def update_review():
+    selected = input.review_selected()
+    if not selected:
+        return
+    row = my_reviews_dict().get(selected)
+    if row is None:
+        return
+    conn = cnx()
+    if conn is None:
+        return
+    try:
+        c = conn.cursor()
+        c.callproc('food_inspections.update_review', (
+            row['license_num'],
+            input.my_email(),
+            input.edit_comment(),
+            input.edit_rating()
+        ))
+        conn.commit()
+        m = ui.modal(title="Review updated!", easy_close=True, footer=None)
+        ui.modal_show(m)
+
+    except Exception as e:
+        m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
+        ui.modal_show(m)
+
+@reactive.effect
+@reactive.event(input.delete_review_btn)
+def delete_review():
+    selected = input.review_selected()
+    if not selected:
+        return
+    row = my_reviews_dict().get(selected)
+    if row is None:
+        return
+    conn = cnx()
+    if conn is None:
+        return
+    try:
+        c = conn.cursor()
+        c.callproc('food_inspections.delete_review', (
+            row['license_num'],
+            input.my_email()
+        ))
+        conn.commit()
+        m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
+        ui.modal_show(m)
+
+    except Exception as e:
+        m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
+        ui.modal_show(m)
 
 def concatenate_restaurant_results(result_list):
     if not result_list:
