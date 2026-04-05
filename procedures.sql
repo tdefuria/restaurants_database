@@ -170,9 +170,12 @@ DELIMITER $$
 CREATE PROCEDURE get_restaurant_locations()
 BEGIN
 	SELECT latitude, longitude, business_name, 
-		restaurant.license_num, street_num, city 
+		restaurant.license_num, street_num, city, COUNT(*) AS vio_count 
 			FROM restaurant
-			INNER JOIN address USING (license_num);
+			INNER JOIN address USING (property_id)
+            INNER JOIN violation_log
+				ON restaurant.license_num = violation_log.license_num
+			GROUP BY restaurant.license_num ORDER BY vio_count DESC;
 END $$
 DELIMITER ;
 
