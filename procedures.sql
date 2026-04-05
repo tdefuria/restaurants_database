@@ -87,10 +87,14 @@ BEGIN
 	IF ((SELECT COUNT(license_num) FROM restaurant WHERE business_name LIKE (CONCAT('%', business_name_p, '%'))) = 0)
 		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "No restaurant found by that keyword in the violations database"; 
 	END IF;
-	SELECT latitude, longitude, 
-		restaurant.license_num, business_name, street_num, city FROM restaurant 
+	SELECT latitude, longitude, restaurant.license_num, business_name, 
+		street_num, city, COUNT(*) as vio_count FROM restaurant 
 			INNER JOIN address USING (property_id)
-			WHERE business_name LIKE (CONCAT('%', business_name_p, '%'));
+            INNER JOIN violation_log 
+				ON restaurant.license_num = violation_log.license_num
+			WHERE business_name LIKE (CONCAT('%', business_name_p, '%'))
+            GROUP BY restaurant.license_num
+            ORDER BY vio_count DESC;
 END $$
 DELIMITER ;
 
@@ -208,7 +212,8 @@ CREATE PROCEDURE get_each_tract_violations_count()
 BEGIN
 	DECLARE row_not_found INT;
 	DECLARE current_tract_id CHAR(11);
-    DECLARE current_tract_count INT;
+    DECLARE current_tract_vios_c INT; -- _c means count
+    DECLARE current_tract_restaurants_c INT; -- _c means count
     DECLARE census_tract_c CURSOR FOR
 		SELECT tract_id FROM census_tract;
     DECLARE CONTINUE HANDLER FOR NOT FOUND
@@ -218,9 +223,14 @@ BEGIN
     OPEN census_tract_c;
     WHILE row_not_found = FALSE DO
 		FETCH census_tract_c INTO current_tract_id;
-        SET current_tract_count = 0;
-		CALL total_tract_violations(current_tract_id, current_tract_count);
-        SELECT current_tract_id, current_tract_count;
+        SET current_tract_vios_c = 0;
+        SET current_tract_restaurants_c = 0;
+		CALL total_tract_violations(current_tract_id, current_tract_vios_c);
+        CALL total_tract_restaurants(current_tract_id, current_tract_restaurants_c);
+        SELECT current_tract_id as tract_id,
+			-- current_tract_vios_c,
+            -- current_tract_restaurants_c,
+            current_tract_vios_c / current_tract_restaurants_c as density;
 	END WHILE;
 END $$
 DELIMITER ;
@@ -324,6 +334,7 @@ DELIMITER ;
 	SET @tc = 0;
 	CALL total_tract_violations('25025010405', @tc);
 	SELECT @tc;
+    
 	CALL get_each_tract_violations_count();
 
 	SET @tcr = 0;
@@ -367,8 +378,9 @@ DELIMITER ;
 	SELECT * FROM review WHERE license_num = 76498;
 	CALL get_restaurant_violations(18174);
 	SET @vc = 0;
-	CALL get_restaurant_violations_count(18174, @vc);
-	SELECT @vc; -- 41 ( matches CALL get_restaurant_violations(18174) rows )
+    CALL get_restaurant_violations_count(134829, @vc); -- 81 (Highest violation Cafe Nero)
+	-- CALL get_restaurant_violations_count(18174, @vc);
+	SELECT @vc; -- 41 for id 18174 ( matches CALL get_restaurant_violations(18174) rows )
 
 	SELECT violation_level, COUNT(*) as count
 	FROM violation_key
