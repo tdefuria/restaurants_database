@@ -486,12 +486,17 @@ with ui.navset_pill(id="selected_navset_pill"):
                                    (license_num, username, input.comment(), input.rating()))
 
                         conn.commit()
+                        trigger_review_update()  # update value boxes
+
+                        # refresh selectize if the review was submitted by the same user currently viewing their reviews
+                        if input.email() == input.my_email():
+                            trigger_refresh_reviews()
 
                         # clear review form
                         ui.update_text('email', value='')
                         ui.update_text('city', value='')
                         ui.update_text('state', value='')
-                        trigger_review_update()  # update value boxes
+
 
                         m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(m)
@@ -636,13 +641,16 @@ def delete_review():
         ))
         conn.commit()
         trigger_review_update()
+        d = dict(my_reviews_dict())
+        d.pop(selected, None)
+        my_reviews_dict.set(d)
+        options = list(d.keys())
+        ui.update_selectize('review_selected', choices={}, selected=None)
+        ui.update_selectize('review_selected',
+                            choices=options if options else {},
+                            selected=options[0] if options else None)
         m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
         ui.modal_show(m)
-    except Exception as e:
-        m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
-        ui.modal_show(m)
-        trigger_refresh_reviews()
-
     except Exception as e:
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
