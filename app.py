@@ -34,6 +34,12 @@ review_update_trigger = reactive.Value(0)
 def trigger_review_update():
     review_update_trigger.set(review_update_trigger() + 1)
 
+# this reactive value controls updates to the reviews selectizer
+refresh_reviews_trigger = reactive.Value(0)
+
+def trigger_refresh_reviews():
+    refresh_reviews_trigger.set(refresh_reviews_trigger() + 1)
+
 # helper function for calling processes in value cards
 def call_proc(proc_name):
     conn = cnx()
@@ -269,7 +275,6 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_restaurants():
-                    review_update_trigger()
                     return call_proc('get_restaurant_count')
 
             # value box: total inspections
@@ -278,7 +283,6 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_health_inspections():
-                    review_update_trigger()
                     return call_proc('get_inspection_count')
 
             # value box: total reviews
@@ -287,7 +291,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_reviews():
-                    review_update_trigger()
+                    review_update_trigger() # create dependency: value is watched in case of updates
                     return call_proc('get_review_count')
 
             # value box: average rating
@@ -296,6 +300,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def avg_rating():
+                    review_update_trigger() # create dependency: value is watched in case of updates
                     return call_proc('get_avg_rating')
 
             # value box: average violations per inspection
@@ -486,6 +491,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         ui.update_text('email', value='')
                         ui.update_text('city', value='')
                         ui.update_text('state', value='')
+                        trigger_review_update()  # update value boxes
 
                         m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(m)
@@ -546,7 +552,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                     )
 
 @reactive.effect
-@reactive.event(input.find_reviews)
+@reactive.event(input.find_reviews, refresh_reviews_trigger)
 def load_my_reviews():
     if not cnx():
         m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
@@ -599,6 +605,8 @@ def update_review():
             input.edit_rating()
         ))
         conn.commit()
+        trigger_review_update()  # update value boxes
+        trigger_refresh_reviews()  # refresh selectize
         m = ui.modal(title="Review updated!", easy_close=True, footer=None)
         ui.modal_show(m)
 
@@ -625,6 +633,8 @@ def delete_review():
             input.my_email()
         ))
         conn.commit()
+        trigger_review_update()  # update value boxes
+        trigger_refresh_reviews()  # refresh selectize
         m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
         ui.modal_show(m)
 
