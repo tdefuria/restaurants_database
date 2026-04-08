@@ -20,7 +20,7 @@ To run app from terminal:
 - navigate to local folder app.py is located in
 - shiny run --reload --launch-browser app.py
 
-Here is a breakdown of the origin of packages included in our requirements.txt file.
+Here is a breakdown of some package origins included in our requirements.txt file.
 
 | Package/Library           | Source/Purpose                                                                                                                                                                   | 
 |---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
