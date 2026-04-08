@@ -27,7 +27,7 @@ restaurant_vio_count_lookup = reactive.Value({})
 # reactive value for reviews data - keyed by option string, value is full row dict
 my_reviews_dict = reactive.Value({})
 
-# this reactive value and the function below control updates to relevant cards after CRUD operations
+# this reactive value and the function below control updates to relevant value cards after CRUD operations
 review_update_trigger = reactive.Value(0)
 
 # whenever this function is called, other reactive values are re-loaded
@@ -555,12 +555,14 @@ with ui.navset_pill(id="selected_navset_pill"):
 @reactive.event(input.find_reviews, refresh_reviews_trigger)
 def load_my_reviews():
     if not cnx():
-        m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
-        ui.modal_show(m)
+        if input.find_reviews() > 0:  # only show modal if user clicked the button
+            m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
+            ui.modal_show(m)
         return
-    elif not input.my_email():
-        m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
-        ui.modal_show(m)
+    if not input.my_email():
+        if input.find_reviews() > 0:
+            m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
+            ui.modal_show(m)
         return
     conn = cnx()
     if conn is None:
@@ -633,9 +635,11 @@ def delete_review():
             input.my_email()
         ))
         conn.commit()
-        trigger_review_update()  # update value boxes
-        trigger_refresh_reviews()  # refresh selectize
+        trigger_review_update()
         m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
+        ui.modal_show(m)
+    except Exception as e:
+        m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
 
     except Exception as e:
