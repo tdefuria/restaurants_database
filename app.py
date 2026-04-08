@@ -641,6 +641,7 @@ def delete_review():
     except Exception as e:
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
+        trigger_refresh_reviews()
 
     except Exception as e:
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
