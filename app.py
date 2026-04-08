@@ -27,6 +27,13 @@ restaurant_vio_count_lookup = reactive.Value({})
 # reactive value for reviews data - keyed by option string, value is full row dict
 my_reviews_dict = reactive.Value({})
 
+# this reactive value and the function below control updates to relevant cards after CRUD operations
+review_update_trigger = reactive.Value(0)
+
+# whenever this function is called, other reactive values are re-loaded
+def trigger_review_update():
+    review_update_trigger.set(review_update_trigger() + 1)
+
 # helper function for calling processes in value cards
 def call_proc(proc_name):
     conn = cnx()
@@ -243,7 +250,6 @@ def connect_to_database():
         m = ui.modal(title="Connection failed", easy_close=True, footer=None)
         ui.modal_show(m)
 
-# two tabs: Overview and Restaurant Search
 with ui.navset_pill(id="selected_navset_pill"):
     # Overview dashboard tab
     with ui.nav_panel("Overview"):
@@ -263,6 +269,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_restaurants():
+                    review_update_trigger()
                     return call_proc('get_restaurant_count')
 
             # value box: total inspections
@@ -271,6 +278,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_health_inspections():
+                    review_update_trigger()
                     return call_proc('get_inspection_count')
 
             # value box: total reviews
@@ -279,6 +287,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_reviews():
+                    review_update_trigger()
                     return call_proc('get_review_count')
 
             # value box: average rating
