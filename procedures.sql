@@ -342,19 +342,25 @@ DELIMITER ;
 
 DROP PROCEDURE IF EXISTS get_restaurant_review_rank;
 DELIMITER $$
-CREATE PROCEDURE get_restaurant_review_rank
-(
-	IN p_license_num INT
-)
+CREATE PROCEDURE get_restaurant_review_rank(IN p_license_num INT)
 BEGIN
-    SELECT COUNT(*) + 1 FROM restaurant r2
-    WHERE r2.review_count > (
-        SELECT review_count FROM restaurant
-        WHERE license_num = p_license_num
-    );
+    IF (SELECT review_count FROM restaurant WHERE license_num = p_license_num) = 0 
+    OR (SELECT review_count FROM restaurant WHERE license_num = p_license_num) IS NULL
+    THEN
+        SELECT NULL;
+    ELSE
+        SELECT COUNT(*) + 1 FROM restaurant r2
+        WHERE r2.review_count > (
+            SELECT review_count FROM restaurant
+            WHERE license_num = p_license_num
+        );
+    END IF;
 END$$
 DELIMITER ;
 
 -- sandbox
-SELECT * from review
-WHERE username = "cain.h@northeastern.edu";
+SELECT * FROM restaurant
+WHERE review_count > 0;
+
+CALL get_restaurant_avg_rating(18174);
+CALL get_restaurant_avg_violations(18174);
