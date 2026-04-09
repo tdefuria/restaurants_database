@@ -416,7 +416,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                 with ui.value_box(showcase=ICONS["star"]):
                     "Average Rating"
 
-
                     @render.text
                     def selected_avg_rating():
                         conn = cnx()
@@ -427,15 +426,15 @@ with ui.navset_pill(id="selected_navset_pill"):
                         if not license_num:
                             return ""
                         c = conn.cursor()
-                        c.callproc('food_inspections.get_restaurant_stats', (license_num[0],))
+                        c.callproc('food_inspections.get_restaurant_avg_rating', (license_num[0],))
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No ratings yet"
                         return str(row[0])
 
+
                 with ui.value_box(showcase=ICONS["triangle-exclamation"]):
                     "Avg Violations per Inspection"
-
 
                     @render.text
                     def selected_avg_violations():
@@ -447,15 +446,14 @@ with ui.navset_pill(id="selected_navset_pill"):
                         if not license_num:
                             return ""
                         c = conn.cursor()
-                        c.callproc('food_inspections.get_restaurant_stats', (license_num[0],))
+                        c.callproc('food_inspections.get_restaurant_avg_violations', (license_num[0],))
                         row = c.fetchone()
-                        if row is None or row[3] is None:
+                        if row is None or row[0] is None:
                             return "No data"
-                        return str(row[3])
+                        return str(row[0])
 
                 with ui.value_box(showcase=ICONS["ranking"]):
                     "Review Ranking"
-
 
                     @render.text
                     def selected_review_rank():
@@ -467,11 +465,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                         if not license_num:
                             return ""
                         c = conn.cursor()
-                        c.callproc('food_inspections.get_restaurant_stats', (license_num[0],))
+                        c.callproc('food_inspections.get_restaurant_review_rank', (license_num[0],))
                         row = c.fetchone()
-                        if row is None or row[2] is None:
+                        if row is None or row[0] is None:
                             return "No data"
-                        return f"#{row[2]} most reviewed"
+                        return f"#{row[0]} most reviewed"
 
             with ui.layout_columns(fill=False):
 
