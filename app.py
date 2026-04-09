@@ -1,6 +1,6 @@
 import plotly.graph_objects as go
 from shiny import reactive, req
-from shiny.express import input, render, ui
+from shiny.express import input, render, session, ui
 from shinywidgets import render_plotly
 import faicons as fa
 import pymysql as sql
@@ -126,6 +126,46 @@ def census_shapes():
 
 # Action button - database log-in
 ui.input_action_button("login", "Login to database")
+
+# Action button - database log-out
+ui.input_action_button("logout", "Logout and Quit")
+
+# Action button - quit app
+ui.input_action_button("quit", "Quit")
+
+@reactive.effect
+@reactive.event(input.logout)
+def close_connection_reactive():
+    conn = cnx()
+    if conn is None:
+        m = ui.modal(title="Must be logged in to logout.", easy_close=True, footer=None)
+        ui.modal_show(m)
+        return ""
+    conn.close()
+    with reactive.isolate():
+        cnx.set(None)
+    # open error modal
+    m = ui.modal(title="Disconnected... Goodbye!", easy_close=True, footer=None)
+    ui.modal_show(m)
+    return
+
+@session.on_ended()
+def safe_close():
+    conn = cnx()
+    if conn is None:
+        m = ui.modal(title="Must be logged in to logout.", easy_close=True, footer=None)
+        ui.modal_show(m)
+    else:
+        conn.quit()
+
+@reactive.effect
+@reactive.event(input.quit)
+def quit_reactive():
+    conn = cnx()
+    if conn is not None:
+        conn.close()
+    quit()
+
 
 # modal pop-up for database login
 # input is the action that triggers the event
