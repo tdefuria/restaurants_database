@@ -1,5 +1,3 @@
-# Debug
-
 import plotly.graph_objects as go
 from shiny import reactive, req
 from shiny.express import input, render, session, ui
@@ -539,8 +537,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         ui.update_text('email', value='')
                         ui.update_text('city', value='')
                         ui.update_text('state', value='')
-
-
+                        trigger_review_update()  # update value boxes
                         m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(m)
 
@@ -668,9 +665,11 @@ def update_review():
 @reactive.event(input.delete_review_btn)
 def delete_review():
     selected = input.review_selected()
+    print(f"selected: {selected}")
     if not selected:
         return
     row = my_reviews_dict().get(selected)
+    print(f"row: {row}")
     if row is None:
         return
     conn = cnx()
@@ -690,7 +689,16 @@ def delete_review():
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
         trigger_refresh_reviews()
-
+        d = dict(my_reviews_dict())
+        d.pop(selected, None)
+        my_reviews_dict.set(d)
+        options = list(d.keys())
+        ui.update_selectize('review_selected', choices={}, selected=None)
+        ui.update_selectize('review_selected',
+                            choices=options if options else {},
+                            selected=options[0] if options else None)
+        m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
+        ui.modal_show(m)
     except Exception as e:
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
