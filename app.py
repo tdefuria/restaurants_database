@@ -284,7 +284,8 @@ with ui.navset_pill(id="selected_navset_pill"):
                  "clipboard": fa.icon_svg("clipboard"),
                  "yelp": fa.icon_svg("yelp"),
                  "star": fa.icon_svg("star"),
-                 "triangle-exclamation": fa.icon_svg("triangle-exclamation")
+                 "triangle-exclamation": fa.icon_svg("triangle-exclamation"),
+                 "ranking": fa.icon_svg("ranking-star")
                  }
 
         with ui.layout_columns(fill=False):
@@ -428,6 +429,66 @@ with ui.navset_pill(id="selected_navset_pill"):
                                    label="Select or search below...",
                                    choices=[],
                                    width='100%')
+
+            with ui.layout_columns(fill=False):
+
+                with ui.value_box(showcase=ICONS["star"]):
+                    "Average Rating"
+
+                    @render.text
+                    def selected_avg_rating():
+                        conn = cnx()
+                        if conn is None or not input.restaurant_selected():
+                            return ""
+                        license_num = list(restaurant_options_dict.get().get(
+                            input.restaurant_selected(), {}).keys())
+                        if not license_num:
+                            return ""
+                        c = conn.cursor()
+                        c.callproc('food_inspections.get_restaurant_avg_rating', (license_num[0],))
+                        row = c.fetchone()
+                        if row is None or row[0] is None:
+                            return "No ratings yet"
+                        return str(row[0])
+
+
+                with ui.value_box(showcase=ICONS["triangle-exclamation"]):
+                    "Avg Violations per Inspection"
+
+                    @render.text
+                    def selected_avg_violations():
+                        conn = cnx()
+                        if conn is None or not input.restaurant_selected():
+                            return ""
+                        license_num = list(restaurant_options_dict.get().get(
+                            input.restaurant_selected(), {}).keys())
+                        if not license_num:
+                            return ""
+                        c = conn.cursor()
+                        c.callproc('food_inspections.get_restaurant_avg_violations', (license_num[0],))
+                        row = c.fetchone()
+                        if row is None or row[0] is None:
+                            return "No data"
+                        return str(row[0])
+
+                with ui.value_box(showcase=ICONS["ranking"]):
+                    "Review Ranking"
+
+                    @render.text
+                    def selected_review_rank():
+                        conn = cnx()
+                        if conn is None or not input.restaurant_selected():
+                            return ""
+                        license_num = list(restaurant_options_dict.get().get(
+                            input.restaurant_selected(), {}).keys())
+                        if not license_num:
+                            return ""
+                        c = conn.cursor()
+                        c.callproc('food_inspections.get_restaurant_review_rank', (license_num[0],))
+                        row = c.fetchone()
+                        if row is None or row[0] is None:
+                            return "No data"
+                        return f"#{row[0]} most reviewed"
 
             with ui.layout_columns(fill=False):
 
