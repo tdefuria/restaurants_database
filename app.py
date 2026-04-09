@@ -435,6 +435,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                 with ui.value_box(showcase=ICONS["star"]):
                     "Average Rating"
 
+
                     @render.text
                     def selected_avg_rating():
                         review_update_trigger()
@@ -450,7 +451,13 @@ with ui.navset_pill(id="selected_navset_pill"):
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No ratings yet"
-                        return str(row[0])
+                        avg = round(float(row[0]), 2)
+                        # get review count
+                        c.callproc('food_inspections.get_restaurant_rating_and_count', (license_num[0],))
+                        row = c.fetchone()
+                        if row is None or row[0] is None:
+                            return "No ratings yet"
+                        return f"{row[1]} reviews \n Average: {row[0]} stars"
 
 
                 with ui.value_box(showcase=ICONS["triangle-exclamation"]):
@@ -467,6 +474,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                             return ""
                         c = conn.cursor()
                         c.callproc('food_inspections.get_restaurant_avg_violations', (license_num[0],))
+                        print(license_num[0]) # debug
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No inspections found"
