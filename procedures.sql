@@ -313,14 +313,15 @@ BEGIN
 END$$
 DELIMITER ;
 
-DROP PROCEDURE IF EXISTS get_restaurant_avg_rating;
+DROP PROCEDURE IF EXISTS get_restaurant_rating_and_count;
 DELIMITER $$
-CREATE PROCEDURE get_restaurant_avg_rating
+CREATE PROCEDURE get_restaurant_rating_and_count
 (
 	IN p_license_num INT
-    )
+)
 BEGIN
-    SELECT avg_rating FROM restaurant
+    SELECT ROUND(avg_rating, 2), review_count 
+    FROM restaurant
     WHERE license_num = p_license_num;
 END$$
 DELIMITER ;
