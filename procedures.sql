@@ -10,7 +10,6 @@ BEGIN
 END$$
 DELIMITER ;
 
-
 DROP PROCEDURE IF EXISTS get_inspection_count;
 DELIMITER $$
 CREATE PROCEDURE get_inspection_count()
@@ -313,3 +312,49 @@ BEGIN
     WHERE license_num = OLD.license_num;
 END$$
 DELIMITER ;
+
+DROP PROCEDURE IF EXISTS get_restaurant_avg_rating;
+DELIMITER $$
+CREATE PROCEDURE get_restaurant_avg_rating
+(
+	IN p_license_num INT
+    )
+BEGIN
+    SELECT avg_rating FROM restaurant
+    WHERE license_num = p_license_num;
+END$$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS get_restaurant_avg_violations;
+DELIMITER $$
+CREATE PROCEDURE get_restaurant_avg_violations
+(
+	IN p_license_num INT
+)
+BEGIN
+    SELECT ROUND(COUNT(*) / NULLIF(
+        (SELECT review_count FROM restaurant WHERE license_num = p_license_num)
+    , 0), 2)
+    FROM violation_log
+    WHERE license_num = p_license_num;
+END$$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS get_restaurant_review_rank;
+DELIMITER $$
+CREATE PROCEDURE get_restaurant_review_rank
+(
+	IN p_license_num INT
+)
+BEGIN
+    SELECT COUNT(*) + 1 FROM restaurant r2
+    WHERE r2.review_count > (
+        SELECT review_count FROM restaurant
+        WHERE license_num = p_license_num
+    );
+END$$
+DELIMITER ;
+
+-- sandbox
+SELECT * from review
+WHERE username = "cain.h@northeastern.edu";
