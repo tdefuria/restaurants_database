@@ -328,13 +328,10 @@ DELIMITER ;
 
 DROP PROCEDURE IF EXISTS get_restaurant_avg_violations;
 DELIMITER $$
-CREATE PROCEDURE get_restaurant_avg_violations
-(
-	IN p_license_num INT
-)
+CREATE PROCEDURE get_restaurant_avg_violations(IN p_license_num INT)
 BEGIN
     SELECT ROUND(COUNT(*) / NULLIF(
-        (SELECT review_count FROM restaurant WHERE license_num = p_license_num)
+        (SELECT COUNT(*) FROM inspection WHERE license_num = p_license_num)
     , 0), 2)
     FROM violation_log
     WHERE license_num = p_license_num;
