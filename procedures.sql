@@ -1,5 +1,7 @@
 USE food_inspections;
 
+
+
 DROP PROCEDURE IF EXISTS get_restaurant_count;
 DELIMITER $$
 CREATE PROCEDURE get_restaurant_count()
