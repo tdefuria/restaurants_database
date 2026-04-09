@@ -437,6 +437,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                     @render.text
                     def selected_avg_rating():
+                        review_update_trigger()
                         conn = cnx()
                         if conn is None or not input.restaurant_selected():
                             return ""
@@ -468,7 +469,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         c.callproc('food_inspections.get_restaurant_avg_violations', (license_num[0],))
                         row = c.fetchone()
                         if row is None or row[0] is None:
-                            return "No data"
+                            return "No inspections found"
                         return str(row[0])
 
                 with ui.value_box(showcase=ICONS["ranking"]):
@@ -476,6 +477,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                     @render.text
                     def selected_review_rank():
+                        review_update_trigger()
                         conn = cnx()
                         if conn is None or not input.restaurant_selected():
                             return ""
@@ -487,7 +489,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         c.callproc('food_inspections.get_restaurant_review_rank', (license_num[0],))
                         row = c.fetchone()
                         if row is None or row[0] is None:
-                            return "No data"
+                            return "Unranked - no reviews"
                         return f"#{row[0]} most reviewed"
 
             with ui.layout_columns(fill=False):
