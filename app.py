@@ -1,5 +1,3 @@
-
-
 import plotly.graph_objects as go
 from shiny import reactive, req
 from shiny.express import input, render, ui
@@ -28,6 +26,19 @@ restaurant_vio_count_lookup = reactive.Value({})
 
 # reactive value for reviews data - keyed by option string, value is full row dict
 my_reviews_dict = reactive.Value({})
+
+# this reactive value and the function below control updates to relevant value cards after CRUD operations
+review_update_trigger = reactive.Value(0)
+
+# whenever this function is called, other reactive values are re-loaded
+def trigger_review_update():
+    review_update_trigger.set(review_update_trigger() + 1)
+
+# this reactive value controls updates to the reviews selectizer
+refresh_reviews_trigger = reactive.Value(0)
+
+def trigger_refresh_reviews():
+    refresh_reviews_trigger.set(refresh_reviews_trigger() + 1)
 
 # helper function for calling processes in value cards
 def call_proc(proc_name):
@@ -281,6 +292,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_reviews():
+                    review_update_trigger() # create dependency: value is watched in case of updates
                     return call_proc('get_review_count')
 
             # value box: average rating
@@ -289,6 +301,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def avg_rating():
+                    review_update_trigger() # create dependency: value is watched in case of updates
                     return call_proc('get_avg_rating')
 
             # value box: average violations per inspection
@@ -474,12 +487,17 @@ with ui.navset_pill(id="selected_navset_pill"):
                                    (license_num, username, input.comment(), input.rating()))
 
                         conn.commit()
+                        trigger_review_update()  # update value boxes
+
+                        # refresh selectize if the review was submitted by the same user currently viewing their reviews
+                        if input.email() == input.my_email():
+                            trigger_refresh_reviews()
 
                         # clear review form
                         ui.update_text('email', value='')
                         ui.update_text('city', value='')
                         ui.update_text('state', value='')
-
+                        trigger_review_update()  # update value boxes
                         m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(m)
 
@@ -539,15 +557,17 @@ with ui.navset_pill(id="selected_navset_pill"):
                     )
 
 @reactive.effect
-@reactive.event(input.find_reviews)
+@reactive.event(input.find_reviews, refresh_reviews_trigger)
 def load_my_reviews():
     if not cnx():
-        m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
-        ui.modal_show(m)
+        if input.find_reviews() > 0:  # only show modal if user clicked the button
+            m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
+            ui.modal_show(m)
         return
-    elif not input.my_email():
-        m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
-        ui.modal_show(m)
+    if not input.my_email():
+        if input.find_reviews() > 0:
+            m = ui.modal(title="Please enter an email address!", easy_close=True, footer=None)
+            ui.modal_show(m)
         return
     conn = cnx()
     if conn is None:
@@ -592,6 +612,8 @@ def update_review():
             input.edit_rating()
         ))
         conn.commit()
+        trigger_review_update()  # update value boxes
+        trigger_refresh_reviews()  # refresh selectize
         m = ui.modal(title="Review updated!", easy_close=True, footer=None)
         ui.modal_show(m)
 
@@ -603,9 +625,11 @@ def update_review():
 @reactive.event(input.delete_review_btn)
 def delete_review():
     selected = input.review_selected()
+    print(f"selected: {selected}")
     if not selected:
         return
     row = my_reviews_dict().get(selected)
+    print(f"row: {row}")
     if row is None:
         return
     conn = cnx()
@@ -618,9 +642,17 @@ def delete_review():
             input.my_email()
         ))
         conn.commit()
+        trigger_review_update()
+        d = dict(my_reviews_dict())
+        d.pop(selected, None)
+        my_reviews_dict.set(d)
+        options = list(d.keys())
+        ui.update_selectize('review_selected', choices={}, selected=None)
+        ui.update_selectize('review_selected',
+                            choices=options if options else {},
+                            selected=options[0] if options else None)
         m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
         ui.modal_show(m)
-
     except Exception as e:
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
