@@ -281,7 +281,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_reviews():
-                    return call_proc('get_review_gitcount')
+                    return call_proc('get_review_count')
 
             # value box: average rating
             with ui.value_box(showcase=ICONS["star"]):
