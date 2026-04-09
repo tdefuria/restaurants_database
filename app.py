@@ -132,7 +132,7 @@ def show_login_modal():
 
 all_tables_fig = reactive.Value(go.Figure())
 restaurant_search_fig = reactive.Value(go.Figure())
-
+# used to ensure the plot_basis only develops once not repeatedly
 plot_basis_once = reactive.Value(False)
 
 @reactive.effect
@@ -279,7 +279,7 @@ with ui.navset_pill(id="selected_navset_pill"):
 
                 @render.text
                 def total_reviews():
-                    return call_proc('get_review_count')
+                    return call_proc('get_review_gitcount')
 
             # value box: average rating
             with ui.value_box(showcase=ICONS["star"]):
@@ -711,6 +711,8 @@ def update_choices():
     restaurant_search_fig.unset()
     with reactive.isolate():
         if results_df.empty == False: # only if there are results
+            # update selectize options with js_eval rich text
+            # shinywidgets
             ui.update_selectize(
                 'restaurant_selected',
                 choices=results_df['options'].tolist(),
@@ -730,6 +732,7 @@ def update_choices():
             )
             restaurant_options_dict.unset()
             restaurant_options_dict.set(new_restaurant_options_dict)
+            # add the new search results to the base map copy
             base_fig.add_trace(go.Scattermap(
                 lat=results_df['latitude'],
                 lon=results_df['longitude'],
@@ -740,10 +743,12 @@ def update_choices():
                 name='all_restaurants'
             ))
         else:
+            # update selectize with empty list
             ui.update_selectize(
                 'restaurant_selected',
                 choices=[],
                 selected=None,
             )
             restaurant_options_dict.unset()
+    # store the improved/populated basemap as the new restaurant search
     restaurant_search_fig.set(base_fig)
