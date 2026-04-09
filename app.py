@@ -662,6 +662,14 @@ def delete_review():
         ))
         conn.commit()
         trigger_review_update()
+        d = dict(my_reviews_dict())
+        d.pop(selected, None)
+        my_reviews_dict.set(d)
+        options = list(d.keys())
+        ui.update_selectize('review_selected', choices={}, selected=None)
+        ui.update_selectize('review_selected',
+                            choices=options if options else {},
+                            selected=options[0] if options else None)
         m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
         ui.modal_show(m)
     except Exception as e:
