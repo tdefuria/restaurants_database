@@ -1,5 +1,3 @@
-
-
 import plotly.graph_objects as go
 from shiny import reactive, req
 from shiny.express import input, render, session, ui
@@ -130,10 +128,7 @@ def census_shapes():
 ui.input_action_button("login", "Login to database")
 
 # Action button - database log-out
-ui.input_action_button("logout", "Logout and Quit")
-
-# Action button - quit app
-ui.input_action_button("quit", "Quit")
+ui.input_action_button("logout", "Logout")
 
 @reactive.effect
 @reactive.event(input.logout)
@@ -143,31 +138,13 @@ def close_connection_reactive():
         m = ui.modal(title="Must be logged in to logout.", easy_close=True, footer=None)
         ui.modal_show(m)
         return ""
-    conn.close()
+    conn.close() # ignore warning, the boolean logic controls for conn is None
     with reactive.isolate():
         cnx.set(None)
     # open error modal
-    m = ui.modal(title="Disconnected... Goodbye!", easy_close=True, footer=None)
+    m = ui.modal(title="Disconnected... You can now safely close the window.", easy_close=True, footer=None)
     ui.modal_show(m)
     return
-
-@session.on_ended()
-def safe_close():
-    conn = cnx()
-    if conn is None:
-        m = ui.modal(title="Must be logged in to logout.", easy_close=True, footer=None)
-        ui.modal_show(m)
-    else:
-        conn.quit()
-
-@reactive.effect
-@reactive.event(input.quit)
-def quit_reactive():
-    conn = cnx()
-    if conn is not None:
-        conn.close()
-    quit()
-
 
 # modal pop-up for database login
 # input is the action that triggers the event
@@ -667,9 +644,11 @@ def update_review():
 @reactive.event(input.delete_review_btn)
 def delete_review():
     selected = input.review_selected()
+    print(f"selected: {selected}")
     if not selected:
         return
     row = my_reviews_dict().get(selected)
+    print(f"row: {row}")
     if row is None:
         return
     conn = cnx()
@@ -683,6 +662,20 @@ def delete_review():
         ))
         conn.commit()
         trigger_review_update()
+        d = dict(my_reviews_dict())
+        d.pop(selected, None)
+        my_reviews_dict.set(d)
+        options = list(d.keys())
+        ui.update_selectize('review_selected', choices={}, selected=None)
+        ui.update_selectize('review_selected',
+                            choices=options if options else {},
+                            selected=options[0] if options else None)
+        m = ui.modal(title="Review deleted!", easy_close=True, footer=None)
+        ui.modal_show(m)
+    except Exception as e:
+        m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
+        ui.modal_show(m)
+        trigger_refresh_reviews()
         d = dict(my_reviews_dict())
         d.pop(selected, None)
         my_reviews_dict.set(d)
