@@ -433,7 +433,7 @@ with ui.navset_pill(id="selected_navset_pill"):
             with ui.layout_columns(fill=False):
 
                 with ui.value_box(showcase=ICONS["star"]):
-                    "Average Rating"
+                    "Ratings"
 
 
                     @render.text
@@ -457,7 +457,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No ratings yet"
-                        return f"{row[1]} reviews \n Average: {row[0]} stars"
+                        return f"Total reviews: {row[1]} \n Average rating: {row[0]} stars"
 
 
                 with ui.value_box(showcase=ICONS["triangle-exclamation"]):
