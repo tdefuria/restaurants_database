@@ -275,6 +275,7 @@ def connect_to_database():
         m = ui.modal(title="Connection failed", easy_close=True, footer=None)
         ui.modal_show(m)
 
+# ENTERING MAIN NESTED STRUCTURE OF UI COMPONENTS
 # two tabs: Overview and Restaurant Search
 with ui.navset_pill(id="selected_navset_pill"):
     # Overview dashboard tab
@@ -447,7 +448,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         if not license_num:
                             return ""
                         c = conn.cursor()
-                        c.callproc('food_inspections.get_restaurant_avg_rating', (license_num[0],))
+                        c.callproc('food_inspections.get_restaurant_rating_and_count', (license_num[0],))
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No ratings yet"
@@ -556,7 +557,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                                      easy_close=True, footer=None)
                         ui.modal_show(m)
                         return
-
+                    if len(input.comment()) > 255:
+                        m = ui.modal(title="Please limit comments to 255 characters or less",
+                                     easy_close=True, footer=None)
+                        ui.modal_show(m)
+                        return
                     conn = cnx()
                     if conn is None:
                         return
@@ -761,17 +766,20 @@ def delete_review():
         m = ui.modal(title=f"Error: {str(e)}", easy_close=True, footer=None)
         ui.modal_show(m)
 
+# organize the results from restaurant search query from database
 def concatenate_restaurant_results(result_list):
     if not result_list:
         return None, None
-    rows = []
-    new_restaurant_options_dict = {}
-    new_restaurant_vio_counts = {}
+    rows = [] # rows will become a dataframe for the mapping component
+    new_restaurant_options_dict = {} # build the options for restaurants
+    new_restaurant_vio_counts = {} # dictionary for violation counts
     for i in range(len(result_list)):
         result_dict = result_list[i]
         option = f"{result_dict.get('business_name', 'No business name')}"
-        option += f"<br>{result_dict.get('street_num', 'No street')}"
-        option += f" {result_dict.get('city', 'No city')}"
+        # <br> goes here if js formatting works, otherwise ',' (comma)
+        option += f", {result_dict.get('street_num', 'No street')}"
+        option += f", {result_dict.get('city', 'No city')}"
+        #all elements for the map option is the tooltip text. vio_count is, too.
         rows.append({'options': option,
                      'latitude': result_dict.get('latitude'),
                      'longitude': result_dict.get('longitude'),
@@ -782,24 +790,25 @@ def concatenate_restaurant_results(result_list):
                   'longitude': result_dict.get('longitude')}
              }
         new_restaurant_vio_counts[result_dict.get('license_num')] = result_dict.get('vio_count')
-    restaurant_vio_count_lookup.set(new_restaurant_vio_counts)
-    results_df = pd.DataFrame(rows)
+    restaurant_vio_count_lookup.set(new_restaurant_vio_counts) # set to the client reactive value
+    results_df = pd.DataFrame(rows) # dataframe goes to map later
     return results_df, new_restaurant_options_dict
 
 @reactive.calc
 @reactive.event(input.send_search) # enter sends the search
 def populate_search_options():
+    # check for invalid states first:
     with reactive.isolate():
         prev = restaurant_options_dict.get() # prev options_dict
     if not cnx(): # check connection and issue reminder to login if not.
         m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
         ui.modal_show(m)
         return pd.DataFrame(), prev # empty df, prev options_dict
-    elif not input.keyword_search(): # keyword_search contains the search terms
+    elif not input.keyword_search(): # keyword_search contains no search terms
         m = ui.modal(title="Please enter an keyword search!", easy_close=True, footer=None)
         ui.modal_show(m)
-        return pd.DataFrame(), prev # empty df, prev options_dict
-    else:
+        return pd.DataFrame(), prev # empty df, prev options_dict, for valid blank UI no errors
+    else: # all invalid states ruled out, proceed with standard logic:
         with reactive.isolate(): # prevent infinite loop dependent on keyword_search
             keywords = input.keyword_search()
         result_list = query_for_dict("CALL search_by_name_restaurant", ["\'"+keywords+"\'"])
@@ -855,6 +864,8 @@ def update_choices():
                 'restaurant_selected',
                 choices=results_df['options'].tolist(),
                 selected=[],
+                # attempt at js formatting the options to include line breaks between place name and address
+                # didn't work, so current version has commas instead.  Room for improvement.
                 options={
                     "render": ui.js_eval(
                         """{
@@ -864,7 +875,6 @@ def update_choices():
                         item: function(item, escape) {
                                 return '<div>' + item.label + '</div>';
                         }
-                    
                     }""")
                 }
             )
