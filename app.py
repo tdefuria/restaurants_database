@@ -448,7 +448,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                         if not license_num:
                             return ""
                         c = conn.cursor()
-                        c.callproc('food_inspections.get_restaurant_avg_rating', (license_num[0],))
+                        c.callproc('food_inspections.get_restaurant_rating_and_count', (license_num[0],))
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No ratings yet"
@@ -557,7 +557,11 @@ with ui.navset_pill(id="selected_navset_pill"):
                                      easy_close=True, footer=None)
                         ui.modal_show(m)
                         return
-
+                    if len(input.comment()) > 255:
+                        m = ui.modal(title="Please limit comments to 255 characters or less",
+                                     easy_close=True, footer=None)
+                        ui.modal_show(m)
+                        return
                     conn = cnx()
                     if conn is None:
                         return
