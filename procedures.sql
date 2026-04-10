@@ -139,7 +139,7 @@ DELIMITER $$
 CREATE PROCEDURE insert_review(
     IN p_license_num INT,
     IN p_username VARCHAR(32),
-    IN p_comment TEXT,
+    IN p_comment VARCHAR(255),
     IN p_rating ENUM('0','1','2','3','4','5')
 )
 BEGIN
@@ -360,5 +360,5 @@ DELIMITER ;
 SELECT * FROM restaurant
 WHERE review_count > 0;
 
-CALL get_restaurant_avg_rating(18174);
-CALL get_restaurant_avg_violations(18174);
+-- CALL get_restaurant_avg_rating(18174);
+-- CALL get_restaurant_avg_violations(18174);
