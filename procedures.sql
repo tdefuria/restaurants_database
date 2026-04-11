@@ -158,7 +158,7 @@ BEGIN
     UPDATE restaurant
     SET review_count = review_count + 1,
         avg_rating = (
-            SELECT AVG(CAST(rating AS DECIMAL))
+            SELECT AVG(CAST(CAST(rating AS CHAR) AS UNSIGNED))
             FROM review
             WHERE license_num = NEW.license_num
         )
@@ -288,7 +288,7 @@ FOR EACH ROW
 BEGIN
     UPDATE restaurant
     SET avg_rating = (
-        SELECT AVG(CAST(rating AS DECIMAL))
+        SELECT AVG(CAST(CAST(rating AS CHAR) AS UNSIGNED))
         FROM review
         WHERE license_num = NEW.license_num
     )
@@ -305,7 +305,7 @@ BEGIN
     UPDATE restaurant
     SET review_count = GREATEST(review_count - 1, 0),
         avg_rating = (
-            SELECT AVG(CAST(rating AS DECIMAL))
+            SELECT AVG(CAST(CAST(rating AS CHAR) AS UNSIGNED))
             FROM review
             WHERE license_num = OLD.license_num
         )
@@ -357,8 +357,4 @@ END$$
 DELIMITER ;
 
 -- sandbox
-SELECT * FROM restaurant
-WHERE review_count > 0;
-
--- CALL get_restaurant_avg_rating(18174);
--- CALL get_restaurant_avg_violations(18174);
+SELECT AVG(CAST(CAST(rating AS CHAR) AS UNSIGNED)) FROM review WHERE license_num = 409110;

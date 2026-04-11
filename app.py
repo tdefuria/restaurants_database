@@ -541,7 +541,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                                         value='I ate here!')
                     ui.input_action_button("send_comment", "Submit")
 
-
                 @reactive.effect
                 @reactive.event(input.send_comment)
                 def submit_review():
@@ -599,6 +598,38 @@ with ui.navset_pill(id="selected_navset_pill"):
                     except sql.err.IntegrityError:
                         m = ui.modal(title="You have already reviewed this restaurant!", easy_close=True, footer=None)
                         ui.modal_show(m)
+
+
+                with ui.card():
+                    ui.card_header("Health Code Violations")
+
+                    # table for health code violations
+                    @render.data_frame
+                    def violations_table():
+                        conn = cnx()
+                        if conn is None or not input.restaurant_selected():
+                            return pd.DataFrame()
+
+                        # extract license number form selection
+                        license_num = list(restaurant_options_dict.get().get(
+                            input.restaurant_selected(), {}).keys())
+                        if not license_num:
+                            return pd.DataFrame()
+
+                        # find all violations for the selected restaurant
+                        with conn.cursor(sql.cursors.DictCursor) as cur:
+                            cur.callproc('food_inspections.get_restaurant_violations', (license_num[0],))
+                            results = cur.fetchall()
+
+                        if not results:
+                            return pd.DataFrame()
+
+                        # dataframe of violations
+                        df = pd.DataFrame(results)
+                        df = df[['status_date', 'type_code', 'type_description',
+                                 'violation_level', 'violation_status', 'violation_comment']]
+                        df.columns = ['Date', 'Code', 'Description', 'Level', 'Status', 'Comment']
+                        return render.DataGrid(df)
 
     # my reviews panel
     with ui.nav_panel("My Reviews"):
