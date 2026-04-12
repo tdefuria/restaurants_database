@@ -54,7 +54,7 @@ DELIMITER $$
 CREATE PROCEDURE get_violations_by_level()
 BEGIN
     SELECT violation_level, COUNT(*) as count
-    FROM violation_key
+    FROM violation_log
     GROUP BY violation_level;
 END$$
 DELIMITER ;
