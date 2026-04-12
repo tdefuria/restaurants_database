@@ -53,9 +53,10 @@ DROP PROCEDURE IF EXISTS get_violations_by_level;
 DELIMITER $$
 CREATE PROCEDURE get_violations_by_level()
 BEGIN
-    SELECT violation_level, COUNT(*) as count
-    FROM violation_log
-    GROUP BY violation_level;
+	SELECT violation_level, COUNT(*) as count
+		FROM violation_key
+		INNER JOIN violation_log USING (type_code)
+		GROUP BY violation_level ORDER BY violation_level asc;
 END$$
 DELIMITER ;
 
