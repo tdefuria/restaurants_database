@@ -351,9 +351,9 @@ with ui.navset_pill(id="selected_navset_pill"):
                     ax.set_xlabel('Violation Level')
                     ax.set_ylabel('Count')
                     description = (
-                        "Level 1: Least severe\n"
+                        "Level 1: Most severe\n"
                         "Level 2: Moderate\n"
-                        "Level 3: Most severe"
+                        "Level 3: Least severe"
                     )
                     ax.text(0.98, 0.98, description,
                             transform=ax.transAxes,
