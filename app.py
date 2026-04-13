@@ -152,7 +152,7 @@ def close_connection_reactive():
 @reactive.effect
 @reactive.event(input.login)
 def show_login_modal():
-    m = ui.modal(
+    login_modal = ui.modal(
         ui.input_text("name", "Username:"),
         ui.input_password("password", "Password:"),
         ui.input_action_button("connect", "Connect"),
@@ -160,7 +160,7 @@ def show_login_modal():
         easy_close=True,
         footer=None,
     )
-    ui.modal_show(m)
+    ui.modal_show(login_modal)
 
 all_tables_fig = reactive.Value(go.Figure())
 restaurant_search_fig = reactive.Value(go.Figure())
@@ -268,12 +268,12 @@ def connect_to_database():
         )
         cnx.set(connection)  # store it globally
         ui.modal_remove()
-        m = ui.modal(title="Connection successful!", easy_close=True, footer=None)
-        ui.modal_show(m)
+        successful_connect = ui.modal(title="Connection successful!", easy_close=True, footer=None)
+        ui.modal_show(successful_connect)
 
     except sql.err.OperationalError:
-        m = ui.modal(title="Connection failed", easy_close=True, footer=None)
-        ui.modal_show(m)
+        connection_error = ui.modal(title="Connection failed", easy_close=True, footer=None)
+        ui.modal_show(connection_error)
 
 # ENTERING MAIN NESTED STRUCTURE OF UI COMPONENTS
 # two tabs: Overview and Restaurant Search
@@ -475,7 +475,6 @@ with ui.navset_pill(id="selected_navset_pill"):
                             return ""
                         c = conn.cursor()
                         c.callproc('food_inspections.get_restaurant_avg_violations', (license_num[0],))
-                        print(license_num[0]) # debug
                         row = c.fetchone()
                         if row is None or row[0] is None:
                             return "No inspections found"
@@ -547,19 +546,19 @@ with ui.navset_pill(id="selected_navset_pill"):
                     # check all fields are filled
                     if not all([input.email(), input.city(), input.state(), input.comment(),
                                 input.restaurant_selected()]):
-                        m = ui.modal(title="Please fill in all fields!", easy_close=True, footer=None)
-                        ui.modal_show(m)
+                        incomplete_survey = ui.modal(title="Please fill in all fields!", easy_close=True, footer=None)
+                        ui.modal_show(incomplete_survey)
                         return
                     # error handling - input for state must be two characters
                     if len(input.state()) > 2:
-                        m = ui.modal(title="Please enter a 2-letter state abbreviation (e.g. MA)!",
+                        state_abbr = ui.modal(title="Please enter a 2-letter state abbreviation (e.g. MA)!",
                                      easy_close=True, footer=None)
-                        ui.modal_show(m)
+                        ui.modal_show(state_abbr)
                         return
                     if len(input.comment()) > 255:
-                        m = ui.modal(title="Please limit comments to 255 characters or less",
+                        comment_length = ui.modal(title="Please limit comments to 255 characters or less",
                                      easy_close=True, footer=None)
-                        ui.modal_show(m)
+                        ui.modal_show(comment_length)
                         return
                     conn = cnx()
                     if conn is None:
@@ -591,9 +590,10 @@ with ui.navset_pill(id="selected_navset_pill"):
                         ui.update_text('email', value='')
                         ui.update_text('city', value='')
                         ui.update_text('state', value='')
+                        ui.update_text('comment', value='')
                         trigger_review_update()  # update value boxes
-                        m = ui.modal(title="Review submitted!", easy_close=True, footer=None)
-                        ui.modal_show(m)
+                        successful_submit = ui.modal(title="Review submitted!", easy_close=True, footer=None)
+                        ui.modal_show(successful_submit)
 
                     except sql.err.IntegrityError:
                         m = ui.modal(title="You have already reviewed this restaurant!", easy_close=True, footer=None)
@@ -751,11 +751,9 @@ def update_review():
 @reactive.event(input.delete_review_btn)
 def delete_review():
     selected = input.review_selected()
-    print(f"selected: {selected}")
     if not selected:
         return
     row = my_reviews_dict().get(selected)
-    print(f"row: {row}")
     if row is None:
         return
     conn = cnx()
@@ -832,8 +830,8 @@ def populate_search_options():
     with reactive.isolate():
         prev = restaurant_options_dict.get() # prev options_dict
     if not cnx(): # check connection and issue reminder to login if not.
-        m = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
-        ui.modal_show(m)
+        search_modal = ui.modal(title="Please login to database first!", easy_close=True, footer=None)
+        ui.modal_show(search_modal)
         return pd.DataFrame(), prev # empty df, prev options_dict
     elif not input.keyword_search(): # keyword_search contains no search terms
         m = ui.modal(title="Please enter an keyword search!", easy_close=True, footer=None)
@@ -842,7 +840,14 @@ def populate_search_options():
     else: # all invalid states ruled out, proceed with standard logic:
         with reactive.isolate(): # prevent infinite loop dependent on keyword_search
             keywords = input.keyword_search()
-        result_list = query_for_dict("CALL search_by_name_restaurant", ["\'"+keywords+"\'"])
+        try:
+            result_list = query_for_dict("CALL search_by_name_restaurant", ["\'"+keywords+"\'"])
+        except err.Error as e:
+            invalid_char_modal = ui.modal(
+                title="Please ensure you only enter valid alphabetical characters. Do not include punctuation",
+                easy_close=True, footer=None)
+            ui.modal_show(invalid_char_modal)
+            return pd.DataFrame(), prev
         results_df, new_restaurant_options_dict = concatenate_restaurant_results(result_list)
         """with reactive.isolate():
             ui.update_text('keyword_search', value='')"""
@@ -888,7 +893,7 @@ def update_choices():
         base_fig = copy.deepcopy(all_tables_fig.get())
     restaurant_search_fig.unset()
     with reactive.isolate():
-        if results_df.empty == False: # only if there are results
+        if isinstance(results_df, pd.DataFrame) and results_df.empty == False: # only if there are results
             # update selectize options with js_eval rich text
             # shinywidgets
             ui.update_selectize(
@@ -929,5 +934,6 @@ def update_choices():
                 selected=None,
             )
             restaurant_options_dict.unset()
+            restaurant_options_dict.set({})
     # store the improved/populated basemap as the new restaurant search
     restaurant_search_fig.set(base_fig)

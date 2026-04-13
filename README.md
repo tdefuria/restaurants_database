@@ -1,10 +1,13 @@
 Our app connects to our SQL server through PyMySQL and provides a UI using Python Shiny Express.
 Here is the home page for python shiny express, which you can install to your venv using pip install shiny.
 https://shiny.posit.co/blog/posts/shiny-express/
+
+Download Python version 3.13 here: https://www.python.org/downloads/release/python-31313/
+
 Before you try to install these things manually, consider trying to install our requirements.txt file to save time.
 
 You can find all necessary libraries in the requirements.txt file.
-There are a significant number of libraries to ensure your have installed
+There are a significant number of libraries to ensure you have installed
 in your virtual environment, so be sure you have all of them. <br>
 To set up your virtual environment:
 If you have an existing virtual environment, skip to step 3
@@ -20,7 +23,7 @@ MacOS and Linux users can use bash command "source venv/bin/activate"
 
 To run app from terminal: 
 - navigate to local folder app.py is located in
-- shiny run --reload --launch-browser app.py
+- shiny run --launch-browser app.py
 
 You need to have the "Census_2010_Tracts.json" file saved in a "shapes" directory within your project folder.
 This contains the shapes for the census tracts used for the app maps, which plot the restaurants.
