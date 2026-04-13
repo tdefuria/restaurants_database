@@ -8,10 +8,12 @@ There are a significant number of libraries to ensure your have installed
 in your virtual environment, so be sure you have all of them. <br>
 To set up your virtual environment:
 If you have an existing virtual environment, skip to step 3
-to ensure you have all required libraries accessible.
+to ensure you have all required libraries accessible.  
+Step 2 below is for windows powershell users.  
+MacOS and Linux users can use bash command "source venv/bin/activate"
 
-1. python -m venv .venv; 
-2. .venv\Scripts\Activate.ps1; <br>
+1. python -m venv .venv
+2. .venv\Scripts\Activate.ps1 <br>
 (you must ensure your have activated your virtual environment regardless.)
 ----------------------------------
 3. pip install -r requirements.txt
@@ -19,6 +21,10 @@ to ensure you have all required libraries accessible.
 To run app from terminal: 
 - navigate to local folder app.py is located in
 - shiny run --reload --launch-browser app.py
+
+You need to have the "Census_2010_Tracts.json" file saved in a "shapes" directory within your project folder.
+This contains the shapes for the census tracts used for the app maps, which plot the restaurants.
+It automatically reads and loads into the app upon startup.
 
 Here is a breakdown of some package origins included in our requirements.txt file.
 
