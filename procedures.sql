@@ -1,7 +1,5 @@
 USE food_inspections;
 
-
-
 DROP PROCEDURE IF EXISTS get_restaurant_count;
 DELIMITER $$
 CREATE PROCEDURE get_restaurant_count()
@@ -46,7 +44,6 @@ BEGIN
         GROUP BY license_num, result_datetime
     ) counts;
 END$$
-
 DELIMITER ;
 
 DROP PROCEDURE IF EXISTS get_violations_by_level;
