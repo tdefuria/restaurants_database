@@ -1,14 +1,15 @@
-import plotly.graph_objects as go
-from shiny import reactive, req
-from shiny.express import input, render, session, ui
-from shinywidgets import render_plotly
-import faicons as fa
-import pymysql as sql
-import pandas as pd
 import copy
-import matplotlib.pyplot as plt
-from pymysql import err
 import json
+
+import faicons as fa
+import matplotlib.pyplot as plt
+import pandas as pd
+import plotly.graph_objects as go
+import pymysql as sql
+from pymysql import err
+from shiny import reactive, req
+from shiny.express import input, render, ui
+from shinywidgets import render_plotly
 
 # save value for database connection (session-specific)
 cnx = reactive.value(None)
