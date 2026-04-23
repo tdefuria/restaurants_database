@@ -54,7 +54,8 @@ CREATE TABLE restaurant (
     contact_last VARCHAR(256) NOT NULL,
     price_level VARCHAR(16) NOT NULL,
     review_count INT DEFAULT 0 NOT NULL,
-    avg_rating DECIMAL(10, 9) DEFAULT NULL
+    avg_rating DECIMAL(10, 9) DEFAULT NULL,
+    violation_count INT DEFAULT 0 NOT NULL
     -- restaurant_type VARCHAR(256) -- cuisine
 );
 

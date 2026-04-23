@@ -144,7 +144,6 @@ BEGIN
     INSERT INTO review (license_num, username, review_comment, rating, review_date)
     VALUES (p_license_num, p_username, p_comment, p_rating, CURDATE());
 END$$
-
 DELIMITER ;
 
 DROP TRIGGER IF EXISTS after_review_insert;
@@ -164,17 +163,21 @@ BEGIN
 END$$
 DELIMITER ;
 
+CREATE INDEX idx_restaurant_locations ON restaurant(
+											property_id, 
+                                            license_num, 
+                                            business_name, 
+                                            violation_count);
+CREATE INDEX idx_address_ids ON address(property_id);
+
 DROP PROCEDURE IF EXISTS get_restaurant_locations;
 DELIMITER $$
 CREATE PROCEDURE get_restaurant_locations()
 BEGIN
 	SELECT latitude, longitude, business_name, 
-		restaurant.license_num, street_num, city, COUNT(*) AS vio_count 
+		restaurant.license_num, street_num, city, violation_count 
 			FROM restaurant
-			INNER JOIN address USING (property_id)
-            INNER JOIN violation_log
-				ON restaurant.license_num = violation_log.license_num
-			GROUP BY restaurant.license_num ORDER BY vio_count DESC;
+			INNER JOIN address USING (property_id);
 END $$
 DELIMITER ;
 
