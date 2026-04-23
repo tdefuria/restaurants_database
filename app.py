@@ -396,7 +396,7 @@ with ui.navset_pill(id="selected_navset_pill"):
                 business_idx = columns_dict['business_name']
                 city_idx = columns_dict['city']
                 street_idx = columns_dict['street_num']
-                vio_idx = columns_dict['vio_count']
+                vio_idx = columns_dict['violation_count']
                 # adds a trace to the figure, or overlays these restaurant locations
                 # with these custom tooltip (HTML / plotly format)
                 fig.add_trace(go.Scattermap(
