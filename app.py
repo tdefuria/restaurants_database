@@ -595,9 +595,9 @@ with ui.navset_pill(id="selected_navset_pill"):
                         trigger_review_update()  # update value boxes
                         successful_submit = ui.modal(title="Review submitted!", easy_close=True, footer=None)
                         ui.modal_show(successful_submit)
-
-                    except sql.err.IntegrityError:
-                        m = ui.modal(title="You have already reviewed this restaurant!", easy_close=True, footer=None)
+                    except sql.err.OperationalError:
+                        m = ui.modal(title="You have already reviewed this restaurant today!"
+                            + " You can only review each restaurant once in a given day.", easy_close=True, footer=None)
                         ui.modal_show(m)
 
 
@@ -764,7 +764,8 @@ def delete_review():
         c = conn.cursor()
         c.callproc('food_inspections.delete_review', (
             row['license_num'],
-            input.my_email()
+            input.my_email(),
+            row['review_date']
         ))
         conn.commit()
         trigger_review_update()
