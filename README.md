@@ -1,3 +1,6 @@
+Link to my video demo: 
+[https://youtu.be/8mYRZRDOT2I](https://youtu.be/8mYRZRDOT2I)
+
 Our app connects to our SQL server through PyMySQL and provides a UI using Python Shiny Express.
 Here is the home page for python shiny express, which you can install to your venv using pip install shiny.
 https://shiny.posit.co/blog/posts/shiny-express/
