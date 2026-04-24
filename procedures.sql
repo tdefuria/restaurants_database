@@ -87,12 +87,9 @@ BEGIN
 		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "No restaurant found by that keyword in the violations database"; 
 	END IF;
 	SELECT latitude, longitude, restaurant.license_num, business_name, 
-		street_num, city, COUNT(*) as vio_count FROM restaurant 
+		street_num, city, violation_count as vio_count FROM restaurant 
 			INNER JOIN address USING (property_id)
-            INNER JOIN violation_log 
-				ON restaurant.license_num = violation_log.license_num
 			WHERE business_name LIKE (CONCAT('%', business_name_p, '%'))
-            GROUP BY restaurant.license_num
             ORDER BY vio_count DESC;
 END $$
 DELIMITER ;
@@ -141,6 +138,9 @@ CREATE PROCEDURE insert_review(
     IN p_rating ENUM('0','1','2','3','4','5')
 )
 BEGIN
+	IF (SELECT COUNT(review_id) FROM review WHERE license_num = p_license_num AND username = p_username AND review_date = CURDATE() > 0)
+		THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "You may only review any given restaurant once per day"; 
+	END IF;
     INSERT INTO review (license_num, username, review_comment, rating, review_date)
     VALUES (p_license_num, p_username, p_comment, p_rating, CURDATE());
 END$$
@@ -262,8 +262,7 @@ CREATE PROCEDURE update_review(
 BEGIN
     UPDATE review
     SET review_comment = p_comment,
-        rating = p_rating,
-        review_date = CURDATE()
+        rating = p_rating
     WHERE license_num = p_license_num AND username = p_username;
 END$$
 
@@ -273,11 +272,12 @@ DROP PROCEDURE IF EXISTS delete_review;
 DELIMITER $$
 CREATE PROCEDURE delete_review(
     IN p_license_num INT,
-    IN p_username VARCHAR(32)
+    IN p_username VARCHAR(32),
+    IN p_date DATE
 )
 BEGIN
     DELETE FROM review
-    WHERE license_num = p_license_num AND username = p_username;
+    WHERE license_num = p_license_num AND username = p_username AND review_date = p_date;
 END$$
 DELIMITER ;
 
